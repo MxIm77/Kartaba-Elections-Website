@@ -33,7 +33,9 @@ const router = useRouter();
 const handleLogin = () => {
   if (userId.value && password.value) {
     console.log(`Login successful (simulation) for ID: ${userId.value}`);
-    router.push('/table');
+    // Optionally store userId in localStorage
+    localStorage.setItem('currentUser', userId.value);
+    router.push('/table');  // Redirect to the table page
   } else {
     alert('Please enter both ID and Password.');
   }
