@@ -1,84 +1,48 @@
 <template>
   <div class="wrapper">
+    <!-- Logo above the card -->
     <div class="logo-text">صَوَّتلي؟</div>
-
+    
+    <!-- Login Card -->
     <div class="login-card">
-      <form @submit.prevent="handleLogin" class="login-form">
-        <input
-          type="text"
-          placeholder="Enter Session ID"
-          v-model="userId"
-          class="login-input"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Enter Passcode"
-          v-model="password"
-          class="login-input"
-          required
-        />
-        <button type="submit" class="login-btn" :disabled="loading">
-          {{ loading ? 'Logging in...' : 'Let\'s go!' }}
-        </button>
+      <form class="login-form">
+        <input 
+          type="text" 
+          placeholder="Enter Session ID" 
+          v-model="userId" 
+          class="login-input">
+        <input 
+          type="password" 
+          placeholder="Enter Passcode" 
+          v-model="password" 
+          class="login-input">
+        <button type="button" class="login-btn" @click="handleLogin">Let's go!</button>
       </form>
-      <p v-if="error" class="error-message">{{ error }}</p>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
-import { useRouter } from 'vue-router'; // useRouter for client-side navigation
+import { useRouter } from 'vue-router';
 
 const userId = ref('');
 const password = ref('');
-const loading = ref(false); // State to indicate loading
-const error = ref(null); // State to display errors
 const router = useRouter();
 
-const handleLogin = async () => {
-  // Basic client-side validation
-  if (!userId.value || !password.value) {
-    error.value = 'Please enter both Session ID and Passcode.';
-    return;
-  }
-
-  loading.value = true; // Start loading
-  error.value = null; // Clear previous errors
-
-  try {
-    // Use useFetch to call your Nuxt server API route
-    const { data, pending, error: fetchError } = await useFetch('/api/login', {
-      method: 'POST',
-      body: {
-        userId: userId.value,
-        password: password.value,
-      },
-    });
-
-    if (data.value && data.value.success) {
-      console.log('Login successful:', data.value.message);
-      // Navigate to the desired page (e.g., /table)
-      router.push('/table');
-    } else {
-      // Handle login failure response from the server
-      console.error('Login failed:', data.value?.message || fetchError.value?.message || 'Unknown error');
-      error.value = data.value?.message || fetchError.value?.message || 'Login failed. Please check your credentials.';
-    }
-
-  } catch (err) {
-    // Handle unexpected errors during the fetch request
-    console.error('API call failed:', err);
-    error.value = 'An unexpected error occurred. Please try again later.';
-  } finally {
-    loading.value = false; // End loading
+const handleLogin = () => {
+  if (userId.value && password.value) {
+    console.log(`Login successful (simulation) for ID: ${userId.value}`);
+    // Optionally store userId in localStorage
+    localStorage.setItem('currentUser', userId.value);
+    router.push('/table');  // Redirect to the table page
+  } else {
+    alert('Please enter both ID and Password.');
   }
 };
 </script>
 
 <style scoped>
-/* Your existing CSS styles here */
 .wrapper {
   --input-focus: #2d8cf0;
   --font-color: #fefefe;
@@ -161,24 +125,10 @@ const handleLogin = async () => {
   font-weight: 600;
   color: var(--font-color);
   cursor: pointer;
-  transition: all 0.1s ease; /* Add a small transition for active state */
-}
-
-.login-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .login-btn:active {
   box-shadow: 0px 0px var(--main-color);
   transform: translate(3px, 3px);
-}
-
-/* New style for error message */
-.error-message {
-  color: #ff4d4f; /* A standard error color */
-  text-align: center;
-  margin-top: 10px;
-  font-size: 14px;
 }
 </style>
