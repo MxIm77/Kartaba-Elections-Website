@@ -74,6 +74,7 @@
         <thead>
           <!-- Using Arabic Headers -->
           <tr>
+            <th>ma3na</th>
             <th>السجل</th>
             <th>العائلة</th>
             <th>الاسم</th>
@@ -84,18 +85,20 @@
             <th>الديانة</th>
             <th>انتخب</th>
             <th>إجراء</th>
+            <th>Update</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="recordsLoading">
-            <td colspan="10" style="text-align: center;">
+            <td colspan="11" style="text-align: center;">
               <span class="loading-spinner"></span> Loading data...
             </td>
           </tr>
           <tr v-else-if="!recordsLoading && electionRecords.length === 0">
-             <td colspan="10" style="text-align: center;">No records found for the selected filters.</td>
+             <td colspan="11" style="text-align: center;">No records found for the selected filters.</td>
           </tr>
           <tr v-else v-for="record in electionRecords" :key="record.id">
+            <td>{{ record.with_us }}</td>  <!-- Step 3: Added Data Cell -->
             <td>{{ record.register }}</td>
             <td>{{ record.family }}</td>
             <td>{{ record.name }}</td>
@@ -104,6 +107,8 @@
             <td>{{ record.dob }}</td>
             <td>{{ record.sex }}</td>
             <td>{{ record.religion }}</td>
+            <td>{{ record.elected }}</td>  <!-- Step 3: Added Data Cell -->
+
             <td>
               <select v-model="record.elected" class="elected-select">
                 <option value="">-- Select --</option>
@@ -478,7 +483,7 @@ select:focus, input:focus { border-color: var(--input-focus-border); box-shadow:
 select { cursor: pointer; }
 button[type="submit"], .pagination button { padding: 10px 20px; border: none; background-color: var(--accent-color); color: white; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; }
 button[type="submit"]:hover:not(:disabled), .pagination button:hover:not(:disabled) { background-color: var(--accent-hover); }
-button:disabled { opacity: 0.65; cursor: not-allowed; }
+button:disabled { opacity: 1.5; cursor: not-allowed; }
 
 .table-container { max-height: 65vh; overflow-y: auto; border: 1px solid var(--table-border-color); border-radius: 8px; background-color: var(--primary-bg-color); }
 table { width: 100%; border-collapse: collapse; }

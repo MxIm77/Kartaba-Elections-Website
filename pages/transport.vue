@@ -67,6 +67,16 @@
         <table>
           <thead>
             <tr>
+                <th>ma3na</th>
+            <th>السجل</th>
+            <th>العائلة</th>
+            <th>الاسم</th>
+            <th>اسم الأب</th>
+            <th>اسم الأم</th>
+            <th>تاريخ الولادة</th>
+            <th>الجنس</th>
+            <th>الديانة</th>
+             <th>انتخب</th>
               <th>النقل</th>
               <th>العنوان</th>
               <th>توقيت المغادرة</th>
@@ -74,34 +84,52 @@
               <th>مكان العودة</th>
               <th>توقيت العودة</th>
               <th>الإجراء</th>
+
             </tr>
           </thead>
           <tbody>
-            <tr v-if="recordsLoading">
-              <td colspan="7" style="text-align: center;">
-                <span class="loading-spinner"></span> Loading data...
-              </td>
-            </tr>
-            <tr v-else-if="!recordsLoading && transportRecords.length === 0">
-              <td colspan="7" style="text-align: center;">No records found for the selected filters.</td>
-            </tr>
-            <tr v-else v-for="record in transportRecords" :key="record.id">
-              <td>{{ record.vehicle_type }}</td>
-              <td>{{ record.address }}</td>
-              <td>{{ record.departure_time }}</td>
-              <td>
-                <input type="number" v-model="record.passengers_count" min="0" class="passenger-input" />
-              </td>
-              <td>{{ record.return_location }}</td>
-              <td>{{ record.return_time }}</td>
-              <td>
-                <button @click="updateRecord(record)" :disabled="record.updating" class="update-btn">
-                  <span v-if="record.updating" class="loading-spinner small"></span>
-                  {{ record.updating ? '...' : 'Update' }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
+  <tr v-if="recordsLoading">
+    <!-- FIX: Update colspan to match the total number of headers (17) -->
+    <td colspan="17" style="text-align: center;">
+      <span class="loading-spinner"></span> Loading data...
+    </td>
+  </tr>
+  <tr v-else-if="!recordsLoading && transportRecords.length === 0">
+    <!-- FIX: Update colspan to match the total number of headers (17) -->
+    <td colspan="17" style="text-align: center;">No records found for the selected filters.</td>
+  </tr>
+  <!-- Add ALL 17 data cells in the correct order -->
+  <tr v-else v-for="record in transportRecords" :key="record.id">
+
+    <!-- === NEW Data Cells (Added in correct order) === -->
+    <td>{{ record.with_us }}</td>      <!-- Header 1: ma3na -->
+    <td>{{ record.register }}</td>     <!-- Header 2: السجل -->
+    <td>{{ record.family }}</td>       <!-- Header 3: العائلة -->
+    <td>{{ record.name }}</td>         <!-- Header 4: الاسم -->
+    <td>{{ record.father }}</td>       <!-- Header 5: اسم الأب -->
+    <td>{{ record.mother }}</td>       <!-- Header 6: اسم الأم -->
+    <td>{{ record.dob }}</td>          <!-- Header 7: تاريخ الولادة -->
+    <td>{{ record.sex }}</td>          <!-- Header 8: الجنس -->
+    <td>{{ record.religion }}</td>     <!-- Header 9: الديانة -->
+    <td>{{ record.elected }}</td>      <!-- Header 10: انتخب -->
+
+    <!-- === EXISTING Data Cells (Kept in correct order) === -->
+    <td>{{ record.vehicle_type }}</td>  <!-- Header 11: النقل -->
+    <td>{{ record.address }}</td>       <!-- Header 12: العنوان -->
+    <td>{{ record.departure_time }}</td> <!-- Header 13: توقيت المغادرة -->
+    <td>                             <!-- Header 14: عدد الركاب -->
+      <input type="number" v-model="record.passengers_count" min="0" class="passenger-input" />
+    </td>
+    <td>{{ record.return_location }}</td> <!-- Header 15: مكان العودة -->
+    <td>{{ record.return_time }}</td>    <!-- Header 16: توقيت العودة -->
+    <td>                             <!-- Header 17: الإجراء -->
+      <button @click="updateRecord(record)" :disabled="record.updating" class="update-btn">
+        <span v-if="record.updating" class="loading-spinner small"></span>
+        {{ record.updating ? '...' : 'Update' }}
+      </button>
+    </td>
+  </tr>
+</tbody>
         </table>
       </div>
   
@@ -319,7 +347,7 @@
       await useFetch('/api/auth/logout', { method: 'POST' });
       localStorage.removeItem('currentUser');
       currentUser.value = null;
-      router.push('/login'); // Redirect to login page
+      router.push('/'); // Redirect to login page
     } catch (error) {
       showMessage('error', 'Logout failed. Please try again.');
       console.error('Logout error:', error);
@@ -354,7 +382,7 @@
     --error-bg: rgba(255, 69, 58, 0.1);
     --success-color: #34C759;
     --success-bg: rgba(52, 199, 89, 0.1);
-    --table-header-bg: #00000070; /* Default header bg set in scoped styles */
+    --table-header-bg: #000000; /* Default header bg set in scoped styles */
     --table-even-row-bg: #1f2940;
     --table-border-color: #3a4a63;
   }

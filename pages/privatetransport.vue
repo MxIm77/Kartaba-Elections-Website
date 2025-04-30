@@ -4,17 +4,18 @@
       <button @click="handleLogout" class="logout-btn">
         Logout ({{ currentUser || 'admin' }})
       </button>
-  
+
       <!-- Navigation -->
       <nav class="main-nav">
         <NuxtLink to="/elections">Election Management</NuxtLink>
         <NuxtLink to="/transport">Transport Management</NuxtLink>
         <NuxtLink to="/privatetransport">Private Transport</NuxtLink>
+        <NuxtLink to="/stats">Voting Stats</NuxtLink> 
       </nav>
-  
+
       <!-- Main Title -->
       <h1>Private Transport Management</h1>
-  
+
       <!-- Success/Error Messages -->
       <transition name="fade">
         <div v-if="successMessage" class="message success-message">
@@ -28,7 +29,7 @@
           <span>{{ errorMessage }}</span>
         </div>
       </transition>
-  
+
       <!-- Filter Container -->
       <div class="filter-container">
         <form @submit.prevent="applyFilters">
@@ -68,72 +69,99 @@
           </button>
         </form>
       </div>
-  
+
       <!-- Table Container -->
       <div class="table-container" dir="rtl">
         <table>
           <thead>
                 <tr>
-  <th>سيارة خاصة</th>
-  <th>رقم السيارة</th>
-  <th>نوع السيارة</th>
-  <th>عدد الركاب</th>
-</tr>
+                    <th>السجل</th>
+                    <th>العائلة</th>
+                    <th>الاسم</th>
+                    <th>اسم الأب</th>
+                    <th>اسم الأم</th>
+                    <th>تاريخ الولادة</th>
+                    <th>الجنس</th>
+                    <th>الديانة</th>     
+                    <th>سيارة خاصة</th>
+                    <th>رقم السيارة</th>
+                    <th>نوع السيارة</th>
+                    <th>عدد الركاب</th>
+                    <th>انتخب</th>
+                    <th>ma3na</th> 
+                </tr>
           </thead>
           <tbody>
             <tr v-if="recordsLoading">
-              <td colspan="4" style="text-align: center;">
+              <td colspan="14" style="text-align: center;"> <!-- Step 4: Changed to 13 -->
                 <span class="loading-spinner"></span> Loading data...
               </td>
             </tr>
             <tr v-else-if="!recordsLoading && privateTransportRecords.length === 0">
-              <td colspan="4" style="text-align: center;">No records found for the selected filters.</td>
+              <td colspan="14" style="text-align: center;">No records found for the selected filters.</td> <!-- Step 4: Changed to 13 -->
             </tr>
             <!-- Display simplified data -->
             <tr v-else v-for="record in privateTransportRecords" :key="record.id">
-              <td>{{ record.is_private_car ? 'نعم' : 'لا' }}</td>
-              <td>{{ record.route_number }}</td>
-              <td>{{ record.route_type }}</td>
-              <td>{{ record.passengers_count }}</td>
+                <td>{{ record.register }}</td>
+                <td>{{ record.family }}</td>
+                <td>{{ record.name }}</td>
+                <td>{{ record.father }}</td>
+                <td>{{ record.mother }}</td>
+                <td>{{ record.dob }}</td>
+                <td>{{ record.sex }}</td>
+                <td>{{ record.religion }}</td>
+                <td>{{ record.is_private_car ? 'نعم' : 'لا' }}</td>
+                <td>{{ record.route_number }}</td>
+                <td>{{ record.route_type }}</td>
+                <td>{{ record.passengers_count }}</td>
+                <td>{{ record.elected }}</td>
+                <td>{{ record.with_us }}</td>  <!-- Step 3: Added Data Cell -->
             </tr>
           </tbody>
         </table>
       </div>
-  
+
       <!-- Pagination -->
       <div class="pagination" v-if="totalPages > 1 && !recordsLoading">
         <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">Previous</button>
         <span>Page {{ currentPage }} of {{ totalPages }}</span>
         <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages">Next</button>
       </div>
-  
+
       <p class="copyright">© {{ new Date().getFullYear() }} Kartaba 2040 All rights reserved.</p>
     </div>
   </template>
-  
+
   <script setup>
   import { ref, onMounted } from 'vue';
   import { useRouter } from '#app';
-  
+
   // 1. Import the SIMPLIFIED JSON file
   import privateTransportData from '@/db.json';
-  
+
   // --- State ---
   const router = useRouter();
   const currentUser = ref(null);
-  
+  // In your <script setup> block, below your existing `ref()` declarations
+
+// State for Voter Counts
+const votedCount = ref(0);
+const notVotedCount = ref(0);
+
+// ... rest of your state variables (privateTransportRecords, etc.)
+
   // Filters
   const selectedIsPrivateCar = ref(''); // Use '' for 'All'
   const selectedRouteNumber = ref('');
   const selectedRouteType = ref('');
   const selectedPassengersCountMin = ref(null); // Use null for no min filter
-  
+
   // Dropdown Options & Loading States
   const privateCarStatusOptions = ref([]);
   const privateCarStatusesLoading = ref(false); // For UI feedback
   const routeTypeOptions = ref([]);
   const routeTypesLoading = ref(false); // For UI feedback
-  
+
   // Table Data & State
   const privateTransportRecords = ref([]); // Displayed records (paginated)
   const allJsonPrivateTransportRecords = ref([]); // All records from JSON
@@ -141,13 +169,13 @@
   const errorMessage = ref(null);
   const successMessage = ref(null);
   let messageTimeout = null;
-  
+
   // Pagination
   const currentPage = ref(1);
   const totalPages = ref(1);
   const itemsPerPage = ref(50);
   const totalRecords = ref(0); // Filtered record count
-  
+
   // --- Utility Functions ---
   function showMessage(type, message, duration = 4000) {
     if (messageTimeout) clearTimeout(messageTimeout);
@@ -163,26 +191,26 @@
       errorMessage.value = null;
     }, duration);
   }
-  
+
   // --- Data Processing (from JSON) ---
-  
+
   // Load initial dropdown options and all records from JSON
   function loadInitialPrivateTransportData() {
     privateCarStatusesLoading.value = true;
     routeTypesLoading.value = true;
     recordsLoading.value = true;
-  
+
     try {
       // Load options from JSON
       privateCarStatusOptions.value = privateTransportData.private_car_statuses || [];
       routeTypeOptions.value = privateTransportData.route_types || [];
-  
+
       // Load all records from JSON
       allJsonPrivateTransportRecords.value = privateTransportData.private_transport_records_simplified || [];
-  
+
       // Apply initial filtering/pagination
       filterAndPaginatePrivateTransportRecords();
-  
+
     } catch (err) {
       showMessage('error', err.message || 'Failed to load initial simplified private transport data from JSON.');
       console.error(err);
@@ -201,13 +229,13 @@
       // recordsLoading set in filterAndPaginate...
     }
   }
-  
+
   // Filter and Paginate the records stored locally
   function filterAndPaginatePrivateTransportRecords() {
     recordsLoading.value = true;
     try {
       let filtered = [...allJsonPrivateTransportRecords.value];
-  
+
       // Apply filters
       if (selectedIsPrivateCar.value !== '') {
         const filterBoolean = selectedIsPrivateCar.value === 'true'; // Convert string from select to boolean
@@ -215,6 +243,7 @@
       }
       if (selectedRouteNumber.value) {
         const searchTerm = selectedRouteNumber.value.toLowerCase();
+        // Make sure route_number exists before calling toLowerCase()
         filtered = filtered.filter(record =>
            record.route_number && record.route_number.toLowerCase().includes(searchTerm)
         );
@@ -222,29 +251,31 @@
       if (selectedRouteType.value) {
         filtered = filtered.filter(record => record.route_type === selectedRouteType.value);
       }
+      // Apply passenger count minimum filter
       if (selectedPassengersCountMin.value !== null && selectedPassengersCountMin.value >= 0) {
-        filtered = filtered.filter(record => record.passengers_count >= selectedPassengersCountMin.value);
+          filtered = filtered.filter(record => record.passengers_count >= selectedPassengersCountMin.value);
       }
-  
+
+
       // Update pagination state
       totalRecords.value = filtered.length;
       totalPages.value = Math.ceil(totalRecords.value / itemsPerPage.value);
-  
+
       // Adjust current page if it's now invalid
       if (currentPage.value > totalPages.value) {
-        currentPage.value = totalPages.value > 0 ? 1 : 1;
+        currentPage.value = totalPages.value > 0 ? 1 : 1; // Reset to 1 if needed
       }
       if (currentPage.value < 1 && totalPages.value >= 1) {
         currentPage.value = 1;
       }
-  
+
       // Apply pagination slicing
       const startIndex = (currentPage.value - 1) * itemsPerPage.value;
       const endIndex = startIndex + itemsPerPage.value;
       privateTransportRecords.value = (currentPage.value >= 1 && filtered.length > 0)
                                       ? filtered.slice(startIndex, endIndex)
                                       : [];
-  
+
     } catch (err) {
       showMessage('error', 'Error filtering or paginating private transport records.');
       console.error(err);
@@ -256,15 +287,15 @@
       recordsLoading.value = false;
     }
   }
-  
+
   // --- Event Handlers ---
-  
+
   // Apply filters and reset pagination
   function applyFilters() {
     currentPage.value = 1;
     filterAndPaginatePrivateTransportRecords();
   }
-  
+
   // Navigate pagination
   function goToPage(page) {
     if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
@@ -272,10 +303,11 @@
       filterAndPaginatePrivateTransportRecords();
     }
   }
-  
+
   // Logout (Optional - uses backend)
   async function handleLogout() {
     try {
+      // Assuming useFetch is globally available in Nuxt 3
       await useFetch('/api/auth/logout', { method: 'POST' });
       localStorage.removeItem('currentUser');
       currentUser.value = null;
@@ -285,16 +317,16 @@
       console.error('Logout error:', error);
     }
   }
-  
+
   // --- Lifecycle Hooks ---
   onMounted(() => {
     currentUser.value = localStorage.getItem('currentUser');
     // Load initial data from JSON
     loadInitialPrivateTransportData();
   });
-  
+
   </script>
-  
+
   <style>
   /* --- GLOBAL STYLES --- */
   /* Assume :root variables and base styles are defined globally */
@@ -325,7 +357,7 @@
     font-family: 'Cairo', 'Tajawal', 'SF Pro Display', 'Inter', system-ui, sans-serif;
   }
   </style>
-  
+
   <style scoped>
   /* --- Component Specific Styles --- */
   .wrapper.private-transport-page {
@@ -343,7 +375,7 @@
     transition: background-color 0.2s ease; z-index: 100;
   }
   .logout-btn:hover { background-color: var(--accent-hover); }
-  
+
   .main-nav {
     text-align: center; padding: 10px; background-color: var(--card-bg-color);
     border-radius: 8px; position: relative; z-index: 50; margin-bottom: 20px;
@@ -354,12 +386,12 @@
   }
   .main-nav a:hover { background-color: var(--accent-hover); color: white; }
   .main-nav a.router-link-exact-active { background-color: var(--accent-color); color: white; }
-  
+
   .message { padding: 12px 15px; margin: 15px 0; border-radius: 6px; display: flex; align-items: center; gap: 10px; font-size: 14px; border-left-width: 4px; border-left-style: solid; }
   .message svg { flex-shrink: 0; }
   .success-message { background-color: var(--success-bg); color: var(--success-color); border-left-color: var(--success-color); }
   .error-message { background-color: var(--error-bg); color: var(--error-color); border-left-color: var(--error-color); }
-  
+
   .filter-container { margin-bottom: 25px; padding: 20px; background-color: var(--card-bg-color); border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
   .filter-container form { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
   .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
@@ -374,35 +406,33 @@
   button[type="submit"], .pagination button { padding: 10px 20px; border: none; background-color: var(--accent-color); color: white; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; }
   button[type="submit"]:hover:not(:disabled), .pagination button:hover:not(:disabled) { background-color: var(--accent-hover); }
   button:disabled { opacity: 0.65; cursor: not-allowed; }
-  
+
   /* Table Styles */
   .table-container {
     max-height: 65vh; overflow-y: auto; border: 1px solid var(--table-border-color);
     border-radius: 8px; background-color: var(--primary-bg-color);
   }
   table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid var(--table-border-color); padding: 10px 12px; font-size: 14px; vertical-align: middle; }
+  th, td { border: 1px solid var(--table-border-color); padding: 10px 12px; font-size: 14px; vertical-align: middle; white-space: nowrap; /* Prevent text wrapping */ }
   .table-container[dir="rtl"] table th,
   .table-container[dir="rtl"] table td {
     text-align: right;
   }
   thead th {
-    background-color: #0000007a; /* Amber/yellow */
-    color: #ffffff; /* Black text */
+    background-color: #000000; /* Black header */
+    color: #ffffff; /* White text */
     position: sticky; top: 0; z-index: 10; font-weight: 600;
   }
   tbody tr:nth-child(even) { background-color: var(--table-even-row-bg); }
   tbody tr:hover { background-color: var(--card-bg-color); }
-  
-  /* Styles removed for input/button within td as they are not present */
-  
+
   /* Pagination */
   .pagination {
     text-align: center; margin-top: 25px; display: flex; justify-content: center; align-items: center; gap: 10px;
   }
   .pagination span { padding: 8px 12px; color: var(--text-color-muted); font-size: 14px; }
   .pagination button { padding: 8px 15px; }
-  
+
   /* Loading Spinner */
   .loading-spinner {
     display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255, 255, 255, 0.3);
@@ -410,11 +440,11 @@
   }
   .loading-spinner.small { width: 14px; height: 14px; border-width: 2px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  
+
   /* Transitions */
   .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
   .fade-enter-from, .fade-leave-to { opacity: 0; }
-  
+
   /* Copyright */
   .copyright { margin-top: 30px; font-size: 12px; color: rgba(255, 255, 255, 0.4); text-align: center; }
   </style>

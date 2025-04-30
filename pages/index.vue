@@ -1,12 +1,7 @@
 <template>
   <div>
-    <!-- Fullscreen Intro Video (plays once for 2 seconds) -->
-
-
-    <!-- Main Login Content (visible after intro) -->
     <transition name="fade-content">
       <div v-if="!showIntro" class="wrapper">
-        <!-- Text Logo instead of Image -->
         <div class="text-logo">طالع الاحد؟</div>
 
         <div class="login-card">
@@ -73,10 +68,11 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-// Assuming useFetch is auto-imported by Nuxt 3
+// Import the login function from the new service file
+import { login } from '~/login'; // Adjust the path if necessary
 
 // --- State ---
-const userId = ref('');
+const userId = ref(''); // Assuming userId is used as the username
 const password = ref('');
 const loading = ref(false);
 const error = ref(null);
@@ -86,7 +82,6 @@ let errorTimeout = null;
 
 // --- Hooks ---
 onMounted(() => {
-  // Ensure router is ready before potentially navigating
   router.isReady().then(() => {
     console.log('Login component mounted and router ready.');
     setTimeout(() => {
@@ -95,7 +90,6 @@ onMounted(() => {
     }, 2000); // Adjust time as needed
   });
 });
-
 
 // --- Methods ---
 function setErrorMessage(message, duration = 4000) {
@@ -109,63 +103,38 @@ function setErrorMessage(message, duration = 4000) {
 const handleLogin = async () => {
   console.log('handleLogin function called.');
   if (!userId.value || !password.value) {
-    setErrorMessage('Please enter both Session ID and Passcode.');
+    setErrorMessage('Please enter both Name and Passcode.');
     return;
   }
   loading.value = true;
   error.value = null;
   if (errorTimeout) clearTimeout(errorTimeout);
 
-  if (typeof useFetch === 'undefined') {
-      console.error('useFetch is not defined! Cannot make API call.');
-      setErrorMessage('Configuration error: API call function not available.');
-      loading.value = false;
-      return;
-  }
-
   try {
-    const { data, error: fetchError } = await useFetch('/api/login', {
-      method: 'POST',
-      body: { userId: userId.value, password: password.value },
-      ignoreResponseError: true
-    });
+    // Call the login function from the service
+    const result = await login(userId.value, password.value);
 
-    console.log('API Response Data:', data.value);
-    console.log('API Response Error:', fetchError.value);
-
-    if (fetchError.value && !fetchError.value.data) {
-      console.error('Network or fetch error:', fetchError.value);
-      setErrorMessage('Network error. Check connection or contact support.');
-    } else if (fetchError.value && fetchError.value.statusCode >= 400) {
-        console.error(`HTTP Error ${fetchError.value.statusCode}:`, fetchError.value.data);
-        const messageFromServer = fetchError.value.data?.message || 'Invalid credentials or server error.';
-        setErrorMessage(`Login failed: ${messageFromServer}`);
-    } else if (data.value?.success === true) {
-        console.log('Login successful:', data.value.message || 'Success');
-        localStorage.setItem('currentUser', userId.value);
+    if (result.success) {
+        console.log('Login successful:', result.data?.message || 'Success');
+        // You can access headers like result.headers.get('Authorization') if needed
+        localStorage.setItem('currentUser', userId.value); // Store username/userId
         console.log('Navigating to /elections...');
         router.push('/elections');
     } else {
-        console.error('Login failed - API indicated failure:', data.value);
-        const messageFromServer = data.value?.message || 'Login failed. Check credentials.';
-         setErrorMessage(messageFromServer);
+        console.error('Login failed:', result.error);
+        // Use the error message returned by the service
+        setErrorMessage(result.error.message || 'Login failed. Please check your credentials.');
     }
 
   } catch (err) {
-      console.error('Unexpected error during login:', err);
-      if (err instanceof ReferenceError && err.message.includes('useFetch')) {
-          setErrorMessage('Configuration error: API call function not available.');
-      } else {
-          setErrorMessage('An unexpected error occurred. Please try again.');
-      }
+      console.error('Unexpected error during handleLogin:', err);
+      setErrorMessage('An unexpected error occurred. Please try again.');
   } finally {
     loading.value = false;
   }
 };
 </script>
 
-<!-- GLOBAL STYLES (Not Scoped) -->
-<!-- This targets the root elements to prevent the white flash -->
 <style>
 html, body, #__nuxt { /* Target Nuxt root element too */
   height: 100%; /* Ensure full height */
@@ -176,7 +145,6 @@ html, body, #__nuxt { /* Target Nuxt root element too */
 }
 </style>
 
-<!-- COMPONENT-SPECIFIC STYLES (Scoped) -->
 <style scoped>
 /* --- Styles for Intro Video --- */
 .intro-video-overlay {
