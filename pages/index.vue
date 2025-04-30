@@ -1,23 +1,16 @@
 <template>
   <div>
     <!-- Fullscreen Intro Video (plays once for 2 seconds) -->
-    <transition name="fade-intro">
-      <div v-if="showIntro" class="intro-video-overlay">
-        <video autoplay muted playsinline class="intro-video">
-          <source src="/meshwar123.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-      </div>
-    </transition>
+
 
     <!-- Main Login Content (visible after intro) -->
     <transition name="fade-content">
       <div v-if="!showIntro" class="wrapper">
         <!-- Text Logo instead of Image -->
-        <div class="text-logo">صَوَّتلي؟</div>
+        <div class="text-logo">طالع الاحد؟</div>
 
         <div class="login-card">
-          <h2 class="login-title">يا هلا</h2>
+          <h2 class="login-title">رَح تْصَوِّتْلِي؟</h2>
           <p class="login-subtitle">Shu el wade3 Shakla wel3ane el ossa</p>
 
           <form @submit.prevent="handleLogin" class="login-form">
@@ -150,8 +143,8 @@ const handleLogin = async () => {
     } else if (data.value?.success === true) {
         console.log('Login successful:', data.value.message || 'Success');
         localStorage.setItem('currentUser', userId.value);
-        console.log('Navigating to /table...');
-        router.push('/table');
+        console.log('Navigating to /elections...');
+        router.push('/elections');
     } else {
         console.error('Login failed - API indicated failure:', data.value);
         const messageFromServer = data.value?.message || 'Login failed. Check credentials.';
