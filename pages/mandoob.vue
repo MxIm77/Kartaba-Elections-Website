@@ -36,18 +36,18 @@
             <th>اسم الأم</th>
             <th>تاريخ الولادة</th>
             <th>السجل</th>
-            <th>Voted Status</th>
-            <th>Update Vote</th>
+            <th class="status-update-header">Update Vote Status</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="recordsLoading">
-            <td colspan="9" style="text-align: center;">
+            <td colspan="8" style="text-align: center;">
               <span class="loading-spinner"></span> Loading data...
             </td>
           </tr>
+          <!-- Iterate over the COMPUTED mandoobRecords -->
           <tr v-else-if="!recordsLoading && mandoobRecords.length === 0">
-            <td colspan="9" style="text-align: center;">No records found.</td>
+             <td colspan="8" style="text-align: center;">No records found.</td>
           </tr>
           <tr v-else v-for="record in mandoobRecords" :key="record.id">
             <td>{{ record.id }}</td>
@@ -57,29 +57,31 @@
             <td>{{ record.mother }}</td>
             <td>{{ record.dob }}</td>
             <td>{{ record.register }}</td>
-            <td>
-              <select
-                :value="record.voted ? 'yes' : 'no'"
-                class="status-display-select"
-                :class="{'is-voted': record.voted, 'is-not-voted': !record.voted}"
-                @mousedown.prevent
-                @focus="($event.target).blur()"
-              >
-                <option value="yes">صوت (Yes)</option>
-                <option value="no">ما صوت (No)</option>
-              </select>
-            </td>
             <td class="action-cell">
-               <button
-                 v-if="!record.voted"
-                 @click="triggerVoteUpdate(record.id)"
-                 class="update-btn"
-                 :disabled="updatingVoteId === record.id"
-               >
-                  <span v-if="updatingVoteId === record.id" class="loading-spinner small button-spinner"></span>
-                  <span v-else>Update</span>
-               </button>
-               <span v-else class="already-voted-text">-</span>
+              <div class="select-confirm-wrapper">
+                <select
+                  :value="record.selectedVoteStatus"
+                  @change="onDropdownChange($event, record.id)"
+                  class="vote-select"
+                  :class="{'is-voted': record.selectedVoteStatus === 'yes', 'is-not-voted': record.selectedVoteStatus === 'no'}"
+                  :disabled="updatingVoteId === record.id"
+                >
+                  <option value="yes">صوت</option>
+                  <option value="no">ما صوت</option>
+                </select>
+
+                <button
+                  v-if="hasSelectionChanged(record)"
+                  @click="confirmVoteUpdate(record)"
+                  class="confirm-update-btn"
+                  :disabled="updatingVoteId === record.id"
+                >
+                   <span v-if="updatingVoteId === record.id" class="loading-spinner small button-spinner"></span>
+                   <span v-else>Confirm</span>
+                </button>
+              </div>
+              <!-- Separate loading spinner for cell if needed -->
+              <span v-if="updatingVoteId === record.id && !hasSelectionChanged(record)" class="loading-spinner small action-cell-spinner"></span>
             </td>
           </tr>
         </tbody>
@@ -97,14 +99,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from '#app';
 import { checkSession } from '~/home.js';
 import { fetchMandoobRecords, updateMandoobVote } from '~/mandoob.js';
 
 const router = useRouter();
 const currentUser = ref(null);
-const allMandoobRecords = ref([]);
+const allMandoobRecords = ref([]); // Holds original full dataset
 const recordsLoading = ref(true);
 const errorMessage = ref(null);
 const successMessage = ref(null);
@@ -113,47 +115,76 @@ const currentPage = ref(1);
 const itemsPerPage = ref(25);
 const updatingVoteId = ref(null);
 
-const totalRecords = computed(() => allMandoobRecords.value.length);
-const totalPages = computed(() => Math.ceil(totalRecords.value / itemsPerPage.value));
-
+// --- Use a computed property directly for display ---
+// This simplifies state management significantly.
 const mandoobRecords = computed(() => {
   if (recordsLoading.value || !allMandoobRecords.value.length) {
     return [];
   }
   const startIndex = (currentPage.value - 1) * itemsPerPage.value;
   const endIndex = startIndex + itemsPerPage.value;
+
+  // Map the *sliced* data for the current page
   return allMandoobRecords.value
-    .map(r => ({ ...r, voted: r.voted === true || r.voted === 'true' || r.voted === 1 }))
-    .slice(startIndex, endIndex);
+    .slice(startIndex, endIndex)
+    .map(record => {
+      // Find if there's a temporary selection state for this ID
+      const tempSelection = tempSelections.value[record.id];
+      const originalVoted = record.voted === true || record.voted === 'true' || record.voted === 1;
+
+      // Determine the status to display in the dropdown
+      // Use temp state if it exists, otherwise use original state
+      const currentSelectionValue = tempSelection !== undefined ? tempSelection : (originalVoted ? 'yes' : 'no');
+
+      return {
+        ...record,
+        voted: originalVoted, // The actual persisted voted status (boolean)
+        selectedVoteStatus: currentSelectionValue // The value the dropdown should show ('yes' or 'no')
+      };
+    });
 });
 
+// Temporary state for dropdown selections BEFORE confirming
+// Key: record.id, Value: 'yes' or 'no'
+const tempSelections = ref({});
+
+// Computed properties based on the *full* dataset for pagination
+const totalRecords = computed(() => allMandoobRecords.value.length);
+const totalPages = computed(() => Math.ceil(totalRecords.value / itemsPerPage.value));
+
+// Helper to check if selection differs from original voted status
+function hasSelectionChanged(record) {
+    // Check if there's an entry in tempSelections for this record
+    const tempValue = tempSelections.value[record.id];
+    if (tempValue === undefined) {
+        return false; // No change made yet
+    }
+    // Compare the temp selection (boolean) with the original voted status (boolean)
+    const selectedBoolean = tempValue === 'yes';
+    return record.voted !== selectedBoolean;
+}
+
+// --- Standard Functions (showMessage, loadData, goToPage, handleLogout) ---
 function showMessage(type, message, duration = 4000) {
   if (messageTimeout) clearTimeout(messageTimeout);
   errorMessage.value = null;
   successMessage.value = null;
-  if (type === 'success') {
-    successMessage.value = message;
-  } else if (type === 'error') {
-    errorMessage.value = message;
-  }
-  if (type) {
-      messageTimeout = setTimeout(() => {
-        successMessage.value = null;
-        errorMessage.value = null;
-      }, duration);
-  }
+  if (type === 'success') successMessage.value = message;
+  else if (type === 'error') errorMessage.value = message;
+  if (type) messageTimeout = setTimeout(() => { successMessage.value = null; errorMessage.value = null; }, duration);
 }
 
 async function loadData() {
   recordsLoading.value = true;
+  tempSelections.value = {}; // Clear temporary selections on reload
   showMessage(null, '');
   try {
     const result = await fetchMandoobRecords();
     if (result.success && Array.isArray(result.data)) {
-      allMandoobRecords.value = result.data;
-      currentPage.value = 1;
+      allMandoobRecords.value = result.data; // Update the source array
+      currentPage.value = 1; // Reset page
     } else {
-      showMessage('error', result.error?.message || 'Failed to load mandoob records.');
+      showMessage('error', result.error?.message || 'Failed to load records.');
       allMandoobRecords.value = [];
     }
   } catch (err) {
@@ -167,6 +198,7 @@ async function loadData() {
 function goToPage(page) {
   if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
     currentPage.value = page;
+    tempSelections.value = {}; // Clear temp selections when changing page
     window.scrollTo(0, 0);
   }
 }
@@ -179,38 +211,69 @@ async function handleLogout() {
     await router.push('/');
   } catch (error) {
     console.error('Logout error:', error);
-    showMessage('error', 'Logout failed. Please try again.');
+    showMessage('error', 'Logout failed.');
   }
 }
 
-async function triggerVoteUpdate(recordId) {
-  const newVotedStatus = true;
-  const recordIndex = allMandoobRecords.value.findIndex(r => r.id === recordId);
-  if (recordIndex === -1) {
-      console.error(`Record with ID ${recordId} not found in local data.`);
-      return;
+// --- Interaction Functions ---
+
+// Update temporary selection state when dropdown changes
+function onDropdownChange(event, recordId) {
+    const selectedValue = event.target.value; // 'yes' or 'no'
+    // Store the selection in the temporary state object
+    tempSelections.value[recordId] = selectedValue;
+    // Note: We don't need to manually update displayedRecords here,
+    // the computed property `mandoobRecords` will re-run and use the new
+    // value from `tempSelections.value[recordId]`
+}
+
+// Send API request when confirm button is clicked
+async function confirmVoteUpdate(record) {
+  const recordId = record.id;
+  // Get the status to send from the temporary state
+  const selectedStatusString = tempSelections.value[recordId];
+  if (selectedStatusString === undefined) {
+      console.warn('Confirm clicked but no temporary selection found for', recordId);
+      return; // Should not happen if button v-if is correct
   }
-  if (updatingVoteId.value === recordId) return;
+  const newVotedStatus = selectedStatusString === 'yes'; // Boolean status to send
+
+  // Find the original record index in the full list for updating
+  const originalRecordIndex = allMandoobRecords.value.findIndex(r => r.id === recordId);
+  if (originalRecordIndex === -1) {
+    console.error(`Original record with ID ${recordId} not found.`);
+    return;
+  }
+
+  if (updatingVoteId.value === recordId) return; // Prevent re-click
+
   updatingVoteId.value = recordId;
   showMessage(null, '');
+
   try {
     const result = await updateMandoobVote(recordId, newVotedStatus);
+
     if (result.success) {
-      showMessage('success', result.message || `Record ${recordId} marked as voted.`);
-      // *** UPDATED STATE HANDLING ***
-      // Create a new object with the updated status
+      showMessage('success', result.message || `Record ${recordId} updated.`);
+      // Update the *original* record data robustly
       const updatedRecord = {
-          ...allMandoobRecords.value[recordIndex],
-          voted: newVotedStatus
+          ...allMandoobRecords.value[originalRecordIndex],
+          voted: newVotedStatus // Update the actual 'voted' status
       };
-      // Replace the old record with the new one using splice for reactivity
-      allMandoobRecords.value.splice(recordIndex, 1, updatedRecord);
+      allMandoobRecords.value.splice(originalRecordIndex, 1, updatedRecord);
+      // Remove the temporary selection state for this record now that it's saved
+      delete tempSelections.value[recordId];
+      // The computed property will now re-render using the updated original data
     } else {
-      showMessage('error', result.error?.message || `Failed to update vote for record ${recordId}.`);
+      showMessage('error', result.error?.message || `Failed to update vote for ${recordId}.`);
+      // Keep the temporary selection on failure, so the user sees what they tried to save
+      // Optionally, clear the temp state: delete tempSelections.value[recordId];
     }
   } catch (err) {
     console.error("Error during vote update API call:", err);
     showMessage('error', `Error updating vote: ${err.message}`);
+     // Keep the temporary selection on failure
+     // Optionally, clear the temp state: delete tempSelections.value[recordId];
   } finally {
     if (updatingVoteId.value === recordId) {
         updatingVoteId.value = null;
@@ -228,10 +291,10 @@ onMounted(async () => {
       await router.push('/');
       return;
     }
-    await loadData();
+    await loadData(); // Explicitly load data after session check
   } catch (err) {
-    console.error('Initialization error (session check failed):', err);
-    showMessage('error', 'Session check failed. Redirecting to login.', 6000);
+    console.error('Initialization error:', err);
+    showMessage('error', 'Init failed. Redirecting.', 6000);
     await router.push('/');
     recordsLoading.value = false;
   }
@@ -245,15 +308,15 @@ onMounted(async () => {
   --text-color-light: #e0e0e0;
   --text-color-lighter: #f5f5f5;
   --text-color-muted: #9DA3B4;
-  --accent-color: #FF3B30;
+  --accent-color: #FF3B30; /* Confirm button */
   --accent-hover: #E02E24;
-  --input-bg-color: rgba(30, 34, 53, 0.7);
+  --input-bg-color: rgba(42, 59, 82, 0.9);
   --input-border-color: rgba(255, 255, 255, 0.1);
-  --input-focus-border: rgba(255, 59, 48, 0.5);
-  --input-focus-shadow: rgba(255, 59, 48, 0.15);
+  --input-focus-border: rgba(52, 199, 89, 0.6); /* Green focus */
+  --input-focus-shadow: rgba(52, 199, 89, 0.15);
   --error-color: #FF453A;
   --error-bg: rgba(255, 69, 58, 0.1);
-  --success-color: #34C759;
+  --success-color: #34C759; /* Bright Green */
   --success-bg: rgba(52, 199, 89, 0.1);
   --table-header-bg: #00000085;
   --table-even-row-bg: #1f2940;
@@ -284,79 +347,115 @@ h1 { color: var(--text-color-lighter); margin-bottom: 25px; text-align: center; 
 .error-message { background-color: var(--error-bg); color: var(--error-color); border-left-color: var(--error-color); }
 .table-container { max-height: 65vh; overflow-y: auto; border: 1px solid var(--table-border-color); border-radius: 8px; background-color: var(--primary-bg-color); }
 table { width: 100%; border-collapse: collapse; }
-th, td { border: 1px solid var(--table-border-color); padding: 10px 12px; font-size: 14px; vertical-align: middle; text-align: right; white-space: nowrap; }
+th, td { border: 1px solid var(--table-border-color); padding: 8px 10px; font-size: 14px; vertical-align: middle; text-align: right; white-space: nowrap; }
 th { background-color: var(--table-header-bg); color: var(--text-color-lighter); position: sticky; top: 0; z-index: 10; font-weight: 600; }
+th.status-update-header { text-align: center; }
 tbody tr:nth-child(even) { background-color: var(--table-even-row-bg); }
 tbody tr:hover { background-color: var(--card-bg-color); }
 
-.status-display-select {
+td.action-cell {
+  text-align: center;
+  vertical-align: middle;
+  padding: 5px;
+  width: 220px; /* Increased width for select + confirm */
+  position: relative; /* Needed for spinner absolute positioning? Maybe not */
+}
+
+/* Container for select and button */
+.select-confirm-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  width: 100%; /* Ensure wrapper takes cell width */
+}
+
+.vote-select {
   appearance: none; -webkit-appearance: none;
-  display: inline-block;
-  width: auto;
-  min-width: 115px;
-  height: 32px;
-  padding: 0 30px 0 12px;
-  line-height: 30px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 5px;
+  flex-basis: 130px; /* Give select a base width */
+  flex-grow: 0; /* Don't allow select to grow excessively */
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 35px 0 15px;
+  line-height: 38px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 6px;
   border: 1px solid var(--input-border-color);
   background-color: var(--input-bg-color);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%239DA3B4' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 12px 12px;
-  cursor: default;
-  transition: border-color 0.2s ease;
+  background-position: right 12px center;
+  background-size: 14px 14px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
   outline: none;
+  text-align: center;
+  box-sizing: border-box;
 }
-
-.status-display-select.is-voted {
-  color: var(--success-color);
-  border-color: rgba(52, 199, 89, 0.3);
+.vote-select:focus {
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 3px var(--input-focus-shadow);
 }
-.status-display-select.is-not-voted {
-  color: var(--text-color-muted);
-  border-color: var(--input-border-color);
-}
-
-.status-display-select option {
+.vote-select.is-voted { color: var(--success-color); }
+.vote-select.is-not-voted { color: var(--text-color-light); }
+.vote-select option {
   background-color: var(--card-bg-color);
-  color: var(--text-color-light);
+  font-weight: normal;
+  padding: 5px 10px;
 }
-.status-display-select option[value="yes"] { color: var(--success-color); font-weight: 500; }
-.status-display-select option[value="no"] { color: var(--text-color-muted); }
+.vote-select option[value="yes"] { color: var(--success-color); }
+.vote-select option[value="no"] { color: var(--text-color-light); }
+.vote-select:disabled {
+  background-color: var(--disabled-bg-color);
+  color: var(--disabled-text-color);
+  cursor: not-allowed;
+  opacity: 0.7;
+   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%237e8a9e' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+}
 
-td.action-cell { text-align: center; vertical-align: middle; min-width: 100px; }
-.update-btn {
-  padding: 6px 15px;
-  background-color: var(--accent-color);
+/* Confirm Button Styles */
+.confirm-update-btn {
+  padding: 0 15px;
+  background-color: var(--accent-color); /* Red */
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.9rem;
   font-weight: 500;
   transition: background-color 0.2s ease, opacity 0.2s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 80px;
-  height: 32px;
+  height: 40px;
   line-height: 1;
+  flex-shrink: 0;
 }
-.update-btn:hover:not(:disabled) { background-color: var(--accent-hover); }
-.update-btn:disabled {
+.confirm-update-btn:hover:not(:disabled) { background-color: var(--accent-hover); }
+.confirm-update-btn:disabled {
   background-color: var(--disabled-bg-color);
   color: var(--disabled-text-color);
   cursor: not-allowed;
   opacity: 0.7;
 }
-.button-spinner { margin-right: 5px; }
-.already-voted-text {
-    color: var(--text-color-muted);
-    font-size: 13px;
+.button-spinner { margin-right: 6px; }
+
+
+/* Spinner shown in place of wrapper */
+.action-cell > .loading-spinner.small {
+    margin: 0 auto; /* Center spinner if wrapper is hidden */
+    display: block;
+    padding: 11px 0; /* Adjust vertical position */
 }
+/* Hide wrapper when loading */
+.action-cell > .select-confirm-wrapper {
+    display: flex; /* Default */
+}
+.action-cell > span + .select-confirm-wrapper { /* If spinner is shown */
+    display: none;
+}
+
 
 .pagination { text-align: center; margin-top: 25px; display: flex; justify-content: center; align-items: center; gap: 10px; }
 .pagination span { padding: 8px 12px; color: var(--text-color-muted); font-size: 14px; }
