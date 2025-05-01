@@ -101,7 +101,7 @@ onMounted(async () => {
             console.log('Valid session found, redirecting to elections...');
             // Optionally store username if returned by checkSession
             // localStorage.setItem('currentUser', sessionResult.data?.username || 'user');
-            await router.push('/elections'); // Redirect to the main app page
+            await router.push('/mandoob'); // Redirect to the main app page
         } else {
             console.log('No active session found or session invalid.');
              // Clear any potential leftover cookie if check fails but cookie exists
@@ -137,7 +137,7 @@ async function handleLogin() {
 
       // Redirect to the elections page upon successful login
       // The cookie should have been set by the login service itself
-      await router.push('/elections'); // Or your desired protected route
+      await router.push('/mandoob'); // Or your desired protected route
 
     } else {
       // Login failed (API returned error, non-2xx status, etc.)

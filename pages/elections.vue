@@ -1,66 +1,62 @@
 <template>
-  <div class="wrapper elections-page"> <!-- Renamed class for clarity -->
-    <!-- Logout Button (Single instance, correctly placed) -->
+  <div class="wrapper elections-page">
+    <!-- Logout Button -->
     <button @click="handleLogout" class="logout-btn">
-      Logout ({{ currentUser || 'admin' }})
+      Logout ({{ currentUser || '...' }})
     </button>
 
     <!-- Navigation -->
     <nav class="main-nav">
-      <!-- Corrected link to self -->
       <NuxtLink to="/elections">Election Management</NuxtLink>
       <NuxtLink to="/transport">Transport Management</NuxtLink>
     </nav>
 
-    <!-- Main Title (Single instance, correctly placed) -->
+    <!-- Title -->
     <h1 style="margin-top: 60px;">Election Management</h1>
 
-    <!-- Success/Error Messages -->
+    <!-- Messages -->
     <transition name="fade">
       <div v-if="successMessage" class="message success-message">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-        <span>{{ successMessage }}</span>
+        <!-- SVG --> <span>{{ successMessage }}</span>
       </div>
     </transition>
     <transition name="fade">
        <div v-if="errorMessage" class="message error-message">
-         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-         <span>{{ errorMessage }}</span>
+        <!-- SVG --> <span>{{ errorMessage }}</span>
        </div>
     </transition>
 
-    <!-- Filter Container -->
+    <!-- Filters -->
     <div class="filter-container">
-      <form @submit.prevent="applyFilters">
+       <form @submit.prevent="applyFilters">
+         <!-- District Select -->
         <div class="form-group">
           <label for="district">Select District:</label>
-          <select id="district" v-model="selectedDistrict" @change="handleDistrictChange"> <!-- Added specific handler -->
-            <option v-if="districtsLoading" value="" disabled>Loading districts...</option>
-            <option v-for="district in districtOptions" :key="district.value" :value="district.value">
-              {{ district.text }}
-            </option>
+          <select id="district" v-model="selectedDistrict" @change="handleDistrictChange" :disabled="districtsLoading || recordsLoading">
+             <option v-if="districtsLoading" value="" disabled>Loading districts...</option>
+             <option v-else value="">All Districts</option>
+             <option v-for="district in districtOptions" :key="district.value" :value="district.value">{{ district.text }}</option>
           </select>
         </div>
+         <!-- Register Select -->
         <div class="form-group">
           <label for="register">Select Register:</label>
-          <select id="register" v-model="selectedRegister">
-            <option value="">All Registers</option>
+          <select id="register" v-model="selectedRegister" :disabled="registersLoading || recordsLoading || !selectedDistrict">
+             <option value="">All Registers</option>
              <option v-if="registersLoading" value="" disabled>Loading registers...</option>
-            <option v-for="register in registerOptions" :key="register" :value="register">
-              Register {{ register }}
-            </option>
+             <option v-for="register in registerOptions" :key="register" :value="register">Register {{ register }}</option>
           </select>
         </div>
+        <!-- Sex Select -->
         <div class="form-group">
           <label for="sex">Select Sex:</label>
-          <select id="sex" v-model="selectedSex">
+          <select id="sex" v-model="selectedSex" :disabled="sexesLoading || recordsLoading">
             <option value="">All Sexes</option>
             <option v-if="sexesLoading" value="" disabled>Loading sexes...</option>
-             <option v-for="sexOption in sexOptions" :key="sexOption.value" :value="sexOption.value">
-               {{ sexOption.text }}
-            </option>
+            <option v-for="sexOption in sexOptions" :key="sexOption.value" :value="sexOption.value">{{ sexOption.text }}</option>
           </select>
         </div>
+        <!-- Filter Button -->
         <button type="submit" :disabled="recordsLoading">
             <span v-if="recordsLoading" class="loading-spinner small"></span>
             Apply Filters
@@ -68,12 +64,12 @@
       </form>
     </div>
 
-    <!-- Table Container -->
+    <!-- Table -->
     <div class="table-container">
       <table>
         <thead>
-          <!-- Using Arabic Headers -->
           <tr>
+            <!-- *** REMOVED Action/Update Headers *** -->
             <th>ma3na</th>
             <th>السجل</th>
             <th>العائلة</th>
@@ -84,21 +80,24 @@
             <th>الجنس</th>
             <th>الديانة</th>
             <th>انتخب</th>
-            <th>إجراء</th>
-            <th>Update</th>
           </tr>
         </thead>
         <tbody>
+          <!-- Loading State -->
           <tr v-if="recordsLoading">
-            <td colspan="11" style="text-align: center;">
-              <span class="loading-spinner"></span> Loading data...
-            </td>
+             <!-- *** Adjusted colspan *** -->
+             <td colspan="10" style="text-align: center;">
+               <span class="loading-spinner"></span> Loading election data...
+             </td>
           </tr>
-          <tr v-else-if="!recordsLoading && electionRecords.length === 0">
-             <td colspan="11" style="text-align: center;">No records found for the selected filters.</td>
+          <!-- No Records State -->
+           <tr v-else-if="!recordsLoading && electionRecords.length === 0">
+              <!-- *** Adjusted colspan *** -->
+             <td colspan="10" style="text-align: center;">No records found.</td>
           </tr>
+           <!-- Data Rows -->
           <tr v-else v-for="record in electionRecords" :key="record.id">
-            <td>{{ record.with_us }}</td>  <!-- Step 3: Added Data Cell -->
+            <td>{{ record.orientation }}</td>
             <td>{{ record.register }}</td>
             <td>{{ record.family }}</td>
             <td>{{ record.name }}</td>
@@ -107,33 +106,24 @@
             <td>{{ record.dob }}</td>
             <td>{{ record.sex }}</td>
             <td>{{ record.religion }}</td>
-            <td>{{ record.elected }}</td>  <!-- Step 3: Added Data Cell -->
-
-            <td>
-              <select v-model="record.elected" class="elected-select">
-                <option value="">-- Select --</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-              </select>
-            </td>
-            <td>
-              <button @click="updateRecord(record)" :disabled="record.updating" class="update-btn">
-                 <span v-if="record.updating" class="loading-spinner small"></span>
-                {{ record.updating ? '...' : 'Update' }}
-              </button>
-            </td>
+            <td>{{ record.voted ?? record.elected }}</td> <!-- Display 'voted' or 'elected' based on API field -->
+            <!-- *** REMOVED Action/Update Cells *** -->
+            <!-- <td> <select ... > </td> -->
+            <!-- <td> <button ... > </td> -->
           </tr>
         </tbody>
       </table>
     </div>
 
     <!-- Pagination -->
-    <div class="pagination" v-if="totalPages > 1 && !recordsLoading">
+     <div class="pagination" v-if="totalPages > 1 && !recordsLoading">
+       <!-- Pagination buttons -->
       <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">Previous</button>
       <span>Page {{ currentPage }} of {{ totalPages }}</span>
       <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages">Next</button>
     </div>
 
+     <!-- Copyright -->
      <p class="copyright">© {{ new Date().getFullYear() }} Kartaba 2040 All rights reserved.</p>
   </div>
 </template>
@@ -141,35 +131,40 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from '#app';
-import { useCookie } from '#app'; // Import useCookie for logout
+// Removed: import { useCookie } from '#app';
+// Removed: import dbData from '@/db.json'; // *** REMOVED ***
 
-// 1. Import the JSON file directly
-import dbData from '@/db.json';
-
-// Import the checkSession function (which now uses cookies)
-import { checkSession } from '~/home.js'; // Adjust path if needed
+// Import authentication and data fetching services
+import { checkSession } from '~/home.js'; // For initial auth check
+import { fetchElectionData } from '~/electionservice.js'; // *** NEW IMPORT *** (adjust path if needed)
 
 // --- State ---
 const router = useRouter();
-const currentUser = ref(null); // Still useful for display
+const currentUser = ref(null);
 
-// Filters, Dropdown Options, Table Data, Pagination State... (keep as is)
-// ... (rest of your state variables)
+// Filters
 const selectedDistrict = ref('');
 const selectedRegister = ref('');
 const selectedSex = ref('');
+
+// Dropdown Options & Loading States
 const districtOptions = ref([]);
 const districtsLoading = ref(true);
 const registerOptions = ref([]);
 const registersLoading = ref(false);
 const sexOptions = ref([]);
 const sexesLoading = ref(true);
-const electionRecords = ref([]);
-const allJsonRecords = ref([]);
-const recordsLoading = ref(true);
+const allRegistersData = ref({}); // To store the registers structure from API
+
+// Table Data & State
+const electionRecords = ref([]); // Paginated records for display
+const allJsonRecords = ref([]); // Holds *all* records fetched from API
+const recordsLoading = ref(true); // Main loading state
 const errorMessage = ref(null);
 const successMessage = ref(null);
 let messageTimeout = null;
+
+// Pagination
 const currentPage = ref(1);
 const totalPages = ref(1);
 const itemsPerPage = ref(50);
@@ -192,237 +187,197 @@ function showMessage(type, message, duration = 4000) {
   }, duration);
 }
 
-// --- Data Processing (from JSON) ---
-// loadInitialData, populateRegistersForSelectedDistrict, filterAndPaginateRecords functions remain the same...
-// ... (keep your existing data processing functions) ...
-function loadInitialData() {
+// --- Data Loading and Processing ---
+
+// *** REWRITTEN: Uses fetchElectionData service ***
+async function loadInitialData() {
+  // Set all relevant loading states
   districtsLoading.value = true;
   sexesLoading.value = true;
-  recordsLoading.value = true; // Also set records loading true initially
+  recordsLoading.value = true;
+  errorMessage.value = null;
 
   try {
-    districtOptions.value = dbData.districts || [];
-    if (districtOptions.value.length > 0 && !selectedDistrict.value) {
-         selectedDistrict.value = districtOptions.value[0].value;
-    } else if (districtOptions.value.length === 0) {
-        selectedDistrict.value = ''; // Clear if no districts
+    console.log('Fetching initial election data using service...');
+    const result = await fetchElectionData(); // Call the service function
+
+    if (result.success && result.data) {
+        console.log('Service returned data successfully:', result.data);
+        const apiData = result.data;
+
+        // Populate state from API response
+        districtOptions.value = apiData.districts || [];
+        sexOptions.value = apiData.sexes || [];
+        allRegistersData.value = apiData.registers || {};
+        allJsonRecords.value = apiData.records || [];
+
+        // Set default district if needed
+        if (districtOptions.value.length > 0 && !selectedDistrict.value) {
+            selectedDistrict.value = districtOptions.value[0].value;
+        } else if (districtOptions.value.length === 0) {
+            selectedDistrict.value = '';
+        }
+
+        // Populate dependent parts
+        populateRegistersForSelectedDistrict();
+        filterAndPaginateRecords(); // This will also set recordsLoading = false
+
+        showMessage('success', 'Election data loaded successfully.');
+
+    } else {
+         // Handle API error from service
+         console.error('Failed to fetch initial data:', result.error);
+         showMessage('error', result.error?.message || 'Failed to load election data.');
+         // Clear potentially stale data
+         districtOptions.value = [];
+         sexOptions.value = [];
+         allRegistersData.value = {};
+         allJsonRecords.value = [];
+         electionRecords.value = [];
+         selectedDistrict.value = '';
+         recordsLoading.value = false; // Ensure loading stops on error
     }
 
-    sexOptions.value = dbData.sexes || [];
-    allJsonRecords.value = dbData.records || [];
-    populateRegistersForSelectedDistrict();
-    filterAndPaginateRecords();
-
   } catch (err) {
-    showMessage('error', err.message || 'Failed to load initial data from JSON.');
-    console.error(err);
-    districtOptions.value = [];
-    sexOptions.value = [];
-    allJsonRecords.value = [];
-    electionRecords.value = []; // Clear table data
-    selectedDistrict.value = '';
+      // Catch unexpected errors during the service call itself
+      showMessage('error', `An unexpected error occurred: ${err.message}`);
+      console.error('Unexpected error in loadInitialData:', err);
+      // Clear state and stop loading on unexpected error
+      districtOptions.value = [];
+      sexOptions.value = [];
+      allRegistersData.value = {};
+      allJsonRecords.value = [];
+      electionRecords.value = [];
+      selectedDistrict.value = '';
+      recordsLoading.value = false;
   } finally {
-    districtsLoading.value = false;
-    sexesLoading.value = false;
+      // Ensure dropdown loading states are off
+      // recordsLoading is handled by filterAndPaginateRecords or error cases above
+      districtsLoading.value = false;
+      sexesLoading.value = false;
   }
 }
 
+// *** Uses allRegistersData ref populated by API ***
 function populateRegistersForSelectedDistrict() {
-    if (!selectedDistrict.value || !dbData.registers) {
+    registersLoading.value = true;
+    if (!selectedDistrict.value || !allRegistersData.value || !allRegistersData.value[selectedDistrict.value]) {
         registerOptions.value = [];
+        registersLoading.value = false;
         return;
     }
-    registersLoading.value = true;
     try {
-        const registersForDistrict = dbData.registers[selectedDistrict.value] || [];
+        const registersForDistrict = allRegistersData.value[selectedDistrict.value] || [];
         const sortedRegisters = [...registersForDistrict].sort((a, b) => {
-            const numA = parseInt(a, 10);
-            const numB = parseInt(b, 10);
+            const numA = parseInt(a, 10); const numB = parseInt(b, 10);
             return !isNaN(numA) && !isNaN(numB) ? numA - numB : String(a).localeCompare(String(b));
         });
         registerOptions.value = sortedRegisters;
     } catch (err) {
-        showMessage('error', 'Failed to populate registers for the selected district.');
-        console.error(err);
-        registerOptions.value = [];
+        showMessage('error', 'Failed to populate registers dropdown.');
+        console.error(err); registerOptions.value = [];
     } finally {
         registersLoading.value = false;
     }
 }
 
+// *** Operates on allJsonRecords populated by API - No changes needed here ***
 function filterAndPaginateRecords() {
-    recordsLoading.value = true;
+    if (!recordsLoading.value) recordsLoading.value = true;
     try {
         let filtered = [...allJsonRecords.value];
-
-        if (selectedDistrict.value) {
-            filtered = filtered.filter(record => record.district === selectedDistrict.value);
-        }
-        if (selectedRegister.value) {
-            filtered = filtered.filter(record => String(record.register) === String(selectedRegister.value));
-        }
-        if (selectedSex.value) {
-            filtered = filtered.filter(record => record.sex === selectedSex.value);
-        }
+        if (selectedDistrict.value) { filtered = filtered.filter(r => r.district === selectedDistrict.value); }
+        if (selectedRegister.value) { filtered = filtered.filter(r => String(r.register) === String(selectedRegister.value)); }
+        if (selectedSex.value) { filtered = filtered.filter(r => r.sex === selectedSex.value); }
 
         totalRecords.value = filtered.length;
         totalPages.value = Math.ceil(totalRecords.value / itemsPerPage.value);
-
-        if (currentPage.value > totalPages.value) {
-            currentPage.value = totalPages.value > 0 ? 1 : 0;
-        }
-        if (currentPage.value <= 0 && totalPages.value > 0) {
-            currentPage.value = 1;
-        }
+        if (currentPage.value > totalPages.value) { currentPage.value = totalPages.value > 0 ? 1 : 0; }
+        if (currentPage.value <= 0 && totalPages.value > 0) { currentPage.value = 1; }
 
         const startIndex = (currentPage.value - 1) * itemsPerPage.value;
         const endIndex = startIndex + itemsPerPage.value;
+        // *** REMOVED 'updating: false' as we are not updating ***
         electionRecords.value = (currentPage.value > 0 && filtered.length > 0)
-                              ? filtered.slice(startIndex, endIndex).map(r => ({ ...r, updating: false }))
+                              ? filtered.slice(startIndex, endIndex)
                               : [];
-
     } catch (err) {
         showMessage('error', 'Error filtering or paginating records.');
-        console.error(err);
-        electionRecords.value = [];
-        totalPages.value = 0;
-        totalRecords.value = 0;
-        currentPage.value = 0;
-
+        console.error(err); electionRecords.value = []; totalPages.value = 0; totalRecords.value = 0; currentPage.value = 0;
     } finally {
-         recordsLoading.value = false;
+         recordsLoading.value = false; // Stop loading after filtering/pagination
     }
 }
 
-// --- MODIFIED updateRecord Function ---
-async function updateRecord(record) {
-  record.updating = true;
-  errorMessage.value = null;
-  successMessage.value = null;
-  let sessionCheckMessage = '';
 
-  // --- Step 1: Call checkSession (relies on cookie now) ---
-  try {
-    console.log('[updateRecord] Checking session via cookie before update...');
-    // No need to get token from localStorage, just call checkSession
-    const sessionResult = await checkSession(); // Call without arguments
+// --- REMOVED: updateRecord Function ---
+// async function updateRecord(record) { ... }
 
-    if (sessionResult.success) {
-      console.log('[updateRecord] Session check successful (cookie auth):', sessionResult.data);
-      sessionCheckMessage = 'Session verified successfully. ';
-    } else {
-      console.error('[updateRecord] Session check failed (cookie auth):', sessionResult.error);
-      sessionCheckMessage = `Session check failed: ${sessionResult.error?.message || 'Unknown reason'}. `;
-      // Decide how to proceed. For testing, we'll continue.
-      // In production, you might stop:
-      // showMessage('error', `Action aborted. Session invalid: ${sessionResult.error?.message || 'Please log in again.'}`);
-      // record.updating = false;
-      // return;
-    }
-  } catch (sessionError) {
-      console.error('[updateRecord] Error during checkSession call:', sessionError);
-      sessionCheckMessage = 'Error occurred while checking session. ';
-  }
-
-  // --- Step 2: Proceed with the Original Update Logic (In Memory) ---
-  try {
-    const recordInDb = allJsonRecords.value.find(r => r.id === record.id);
-    if (recordInDb) {
-      recordInDb.elected = record.elected;
-      const recordInView = electionRecords.value.find(r => r.id === record.id);
-      if (recordInView) {
-          recordInView.elected = record.elected;
-      }
-      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
-      showMessage('success', `${sessionCheckMessage}Record ${record.id} (${record.name}) updated successfully (in memory).`);
-    } else {
-      throw new Error(`Record with ID ${record.id} not found.`);
-    }
-  } catch (updateError) {
-     showMessage('error', `${sessionCheckMessage}${updateError.message || `An unexpected error occurred while updating record ${record.id}.`}`);
-     console.error('[updateRecord] Update error:', updateError);
-  } finally {
-    record.updating = false;
-  }
-}
 
 // --- Event Handlers ---
-// handleDistrictChange, applyFilters, goToPage functions remain the same...
+// handleDistrictChange, applyFilters, goToPage remain the same
 function handleDistrictChange() {
-    selectedRegister.value = ''; // Reset register filter when district changes
+    selectedRegister.value = '';
     populateRegistersForSelectedDistrict();
-    applyFilters(); // Apply filters immediately after district change
+    applyFilters();
 }
-
 function applyFilters() {
     currentPage.value = 1;
     filterAndPaginateRecords();
 }
-
 function goToPage(page) {
   if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
     currentPage.value = page;
-    filterAndPaginateRecords(); // Re-apply pagination
+    filterAndPaginateRecords();
   }
 }
 
-
-// --- MODIFIED Logout ---
+// --- Logout ---
+// handleLogout remains the same (clears localStorage token)
 async function handleLogout() {
     try {
-        // Clear the authentication cookie
-        const tokenCookie = useCookie('authToken');
-        tokenCookie.value = null; // Setting to null effectively deletes it
-
-        // Clear any other local user state
-        localStorage.removeItem('currentUser'); // Keep this if you store username separately
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('authToken'); // Remove the token
         currentUser.value = null;
-
-        console.log('Logged out, auth cookie cleared.');
-
-        // Optional: Call backend logout endpoint if it invalidates server-side session
-        // await useFetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-
-        router.push('/'); // Redirect to login or home
+        console.log('Logged out, auth token cleared from localStorage.');
+        await router.push('/');
     } catch (error) {
         showMessage('error', 'Logout failed. Please try again.');
         console.error('Logout error:', error);
     }
 }
 
-// --- MODIFIED Lifecycle Hooks ---
-onMounted(async () => { // Make onMounted async if calling checkSession
-    currentUser.value = localStorage.getItem('currentUser'); // Still useful for display name
-
-    // --- Optional: Check session on page load ---
+// --- Lifecycle Hooks ---
+// onMounted remains mostly the same, just calls the new loadInitialData
+onMounted(async () => {
+    currentUser.value = localStorage.getItem('currentUser');
     console.log('Checking session on component mount...');
-    recordsLoading.value = true; // Show loading indicator during check
+    recordsLoading.value = true; // Start main loading indicator
+    districtsLoading.value = true;
+    sexesLoading.value = true;
+
     try {
-        const sessionResult = await checkSession();
+        const sessionResult = await checkSession(); // Checks token from localStorage
         if (!sessionResult.success) {
             console.warn('Initial session check failed on mount:', sessionResult.error);
-             showMessage('error', `Session invalid or expired: ${sessionResult.error?.message || 'Please log in.'}`, 6000);
-            // Redirect to login if session is invalid
-            await router.push('/'); // Use await if router.push returns a promise
-            return; // Stop further execution in onMounted
+            showMessage('error', `Session invalid or expired: ${sessionResult.error?.message || 'Please log in.'}`, 6000);
+            await router.push('/');
+            // Stop loading indicators if redirecting early
+            recordsLoading.value = false; districtsLoading.value = false; sexesLoading.value = false;
+            return;
         } else {
             console.log('Initial session check successful on mount.');
-            // Session is valid, proceed to load data
-             loadInitialData(); // Call this only if session is valid
+            // Session valid, load data from API using the service
+            await loadInitialData(); // Call the rewritten function
         }
     } catch(err) {
-         console.error('Error during initial session check:', err);
-         showMessage('error', 'Could not verify session. Please try logging in.', 6000);
+         console.error('Error during initial session check/load:', err);
+         showMessage('error', 'Could not verify session or load data. Please try logging in.', 6000);
          await router.push('/');
+         recordsLoading.value = false; districtsLoading.value = false; sexesLoading.value = false;
          return;
-    } finally {
-        // recordsLoading is handled within loadInitialData now
-        // recordsLoading.value = false; // Ensure loading stops if check fails early
     }
-    // --- End optional session check ---
-
-    // If not doing session check on mount, load data directly:
-    // loadInitialData();
+    // Loading states are managed within loadInitialData and filterAndPaginateRecords
 });
 
 </script>

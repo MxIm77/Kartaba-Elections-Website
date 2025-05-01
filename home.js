@@ -9,7 +9,7 @@ import { useFetch } from '#app';
  */
 export async function checkSession() {
   // --- Hardcoded backend URL ---
-  const checkSessionUrl = 'http://192.168.1.103:4040/check-session';
+  const checkSessionUrl = 'http://192.168.1.102:4040/check-session';
 
   try {
     const token = localStorage.getItem('authToken'); // Get token from storage

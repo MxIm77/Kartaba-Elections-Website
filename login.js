@@ -7,7 +7,7 @@
  * @returns {Promise<{success: boolean, data?: any, error?: any}>}
  */
 export async function login(username, password) {
-  const backendUrl = 'http://192.168.1.103:4040'; // Using Beeceptor endpoint
+  const backendUrl = 'http://192.168.1.102:4040'; // Using Beeceptor endpoint
   const loginUrl = `${backendUrl}/login`;
 
   try {
