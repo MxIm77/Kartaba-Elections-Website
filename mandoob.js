@@ -1,8 +1,8 @@
-// ~/mandoob.js (Keep as is from your last version)
+// ~/mandoob.js
 
 const API_BASE_URL = 'http://192.168.10.103:4040';
 const MANDOOB_LIST_ENDPOINT = '/mandoob/getrows';
-const MANDOOB_UPDATE_ENDPOINT = '/mandoob/updatevote';
+const MANDOOB_UPDATE_ENDPOINT = '/mandoob/updatevote'; // Base path for update
 
 export async function fetchMandoobRecords() {
     const mandoobDataUrl = `${API_BASE_URL}${MANDOOB_LIST_ENDPOINT}`;
@@ -32,9 +32,12 @@ export async function fetchMandoobRecords() {
     }
 }
 
-export async function updateMandoobVote(id, newVotedStatus) {
-    const updateUrl = `${API_BASE_URL}${MANDOOB_UPDATE_ENDPOINT}`;
-    console.log(`[mandoob] Updating vote for ID ${id} to ${newVotedStatus} at ${updateUrl}`);
+// *** UPDATED updateMandoobVote function ***
+// Accepts only 'id'. Assumes the backend endpoint infers setting 'voted' to true.
+export async function updateMandoobVote(id) {
+    // Construct the URL by appending the ID
+    const updateUrl = `${API_BASE_URL}${MANDOOB_UPDATE_ENDPOINT}/${id}`;
+    console.log(`[mandoob] Updating vote for ID ${id} via POST to ${updateUrl} (no body)`);
 
     try {
         const token = localStorage.getItem('authToken');
@@ -43,31 +46,33 @@ export async function updateMandoobVote(id, newVotedStatus) {
             return { success: false, error: { message: 'Authentication token not found.' } };
         }
 
-        const method = 'POST';
+        const method = 'POST'; // Or PUT, check your API
 
+        // Make the $fetch call: only method, headers (Auth only), no body
         const response = await $fetch(updateUrl, {
             method: method,
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                id: id,
-                voted: newVotedStatus // Will be true when called by the button
-            })
+                'Authorization': `Bearer ${token}`
+                // No Content-Type header needed
+            }
+            // No body property
         });
 
         console.log("[mandoob] Update API Response:", response);
 
-        if (response && (response.success === true || response.message || typeof response !== 'object')) {
-             return { success: true, message: response.message || `Vote status updated for ${id}.` };
+        // Adjust success check based on expected response (might be empty 2xx or JSON)
+        if (response && (response.success === true || response.message || typeof response !== 'object' || response === null)) {
+             return { success: true, message: response?.message || `Vote status updated for ${id}.` };
+        } else if (response === undefined || response === null) { // Handle successful empty responses
+            console.log(`[mandoob] Received successful empty response for ID ${id}`);
+            return { success: true, message: `Vote status updated for ${id}.` };
         } else {
             const failureMsg = response?.message || response?.error || 'Backend reported an issue with the update.';
             console.warn("[mandoob] Update failed (backend response):", response);
             return { success: false, error: { message: failureMsg } };
         }
     } catch (err) {
-        console.error(`[mandoob] Update failed for ID ${id}:`, err);
+        console.error(`[mandoob] Update API call failed for ID ${id}:`, err);
         const errorMessage = err.data?.message || err.statusMessage || err.message || 'Failed to update vote status.';
         const statusCode = err.response?.status || err.statusCode;
         return { success: false, error: { message: errorMessage, statusCode: statusCode } };

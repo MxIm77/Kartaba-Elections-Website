@@ -45,11 +45,12 @@
               <span class="loading-spinner"></span> Loading data...
             </td>
           </tr>
-          <!-- Iterate over the COMPUTED mandoobRecords -->
-          <tr v-else-if="!recordsLoading && mandoobRecords.length === 0">
+          <!-- Use displayedRecords directly -->
+          <tr v-else-if="!recordsLoading && displayedRecords.length === 0">
              <td colspan="8" style="text-align: center;">No records found.</td>
           </tr>
-          <tr v-else v-for="record in mandoobRecords" :key="record.id">
+          <!-- Iterate over displayedRecords -->
+          <tr v-else v-for="record in displayedRecords" :key="record.id">
             <td>{{ record.id }}</td>
             <td>{{ record.name }}</td>
             <td>{{ record.family }}</td>
@@ -58,13 +59,14 @@
             <td>{{ record.dob }}</td>
             <td>{{ record.register }}</td>
             <td class="action-cell">
-              <div class="select-confirm-wrapper">
+               <span v-if="updatingVoteId === record.id" class="loading-spinner small action-cell-spinner"></span>
+               <div v-else class="select-confirm-wrapper">
                 <select
                   :value="record.selectedVoteStatus"
                   @change="onDropdownChange($event, record.id)"
                   class="vote-select"
                   :class="{'is-voted': record.selectedVoteStatus === 'yes', 'is-not-voted': record.selectedVoteStatus === 'no'}"
-                  :disabled="updatingVoteId === record.id"
+                  :disabled="record.voted === true"
                 >
                   <option value="yes">صوت</option>
                   <option value="no">ما صوت</option>
@@ -76,12 +78,9 @@
                   class="confirm-update-btn"
                   :disabled="updatingVoteId === record.id"
                 >
-                   <span v-if="updatingVoteId === record.id" class="loading-spinner small button-spinner"></span>
-                   <span v-else>Confirm</span>
+                   <span>Confirm</span>
                 </button>
               </div>
-              <!-- Separate loading spinner for cell if needed -->
-              <span v-if="updatingVoteId === record.id && !hasSelectionChanged(record)" class="loading-spinner small action-cell-spinner"></span>
             </td>
           </tr>
         </tbody>
@@ -99,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue'; // Keep watch
 import { useRouter } from '#app';
 import { checkSession } from '~/home.js';
 import { fetchMandoobRecords, updateMandoobVote } from '~/mandoob.js';
@@ -107,6 +106,7 @@ import { fetchMandoobRecords, updateMandoobVote } from '~/mandoob.js';
 const router = useRouter();
 const currentUser = ref(null);
 const allMandoobRecords = ref([]); // Holds original full dataset
+const displayedRecords = ref([]); // Holds records for the CURRENT page + temp state
 const recordsLoading = ref(true);
 const errorMessage = ref(null);
 const successMessage = ref(null);
@@ -114,57 +114,49 @@ let messageTimeout = null;
 const currentPage = ref(1);
 const itemsPerPage = ref(25);
 const updatingVoteId = ref(null);
+const tempSelections = ref({}); // Stores { recordId: 'yes' | 'no' } for changes
 
-// --- Use a computed property directly for display ---
-// This simplifies state management significantly.
-const mandoobRecords = computed(() => {
-  if (recordsLoading.value || !allMandoobRecords.value.length) {
-    return [];
-  }
-  const startIndex = (currentPage.value - 1) * itemsPerPage.value;
-  const endIndex = startIndex + itemsPerPage.value;
+// Watch for changes in the source data or current page to update the display list
+watch([allMandoobRecords, currentPage], () => {
+    calculateDisplayedRecords();
+}, { deep: true }); // Use deep watch if needed, though shouldn't be necessary here
 
-  // Map the *sliced* data for the current page
-  return allMandoobRecords.value
-    .slice(startIndex, endIndex)
-    .map(record => {
-      // Find if there's a temporary selection state for this ID
-      const tempSelection = tempSelections.value[record.id];
-      const originalVoted = record.voted === true || record.voted === 'true' || record.voted === 1;
-
-      // Determine the status to display in the dropdown
-      // Use temp state if it exists, otherwise use original state
-      const currentSelectionValue = tempSelection !== undefined ? tempSelection : (originalVoted ? 'yes' : 'no');
-
-      return {
-        ...record,
-        voted: originalVoted, // The actual persisted voted status (boolean)
-        selectedVoteStatus: currentSelectionValue // The value the dropdown should show ('yes' or 'no')
-      };
-    });
-});
-
-// Temporary state for dropdown selections BEFORE confirming
-// Key: record.id, Value: 'yes' or 'no'
-const tempSelections = ref({});
+// Function to calculate the records for the current page display
+function calculateDisplayedRecords() {
+    if (!allMandoobRecords.value || allMandoobRecords.value.length === 0) {
+        displayedRecords.value = [];
+        return;
+    }
+    const startIndex = (currentPage.value - 1) * itemsPerPage.value;
+    const endIndex = startIndex + itemsPerPage.value;
+    displayedRecords.value = allMandoobRecords.value
+        .slice(startIndex, endIndex)
+        .map(record => {
+            const originalVoted = record.voted === true || record.voted === 'true' || record.voted === 1;
+            const tempSelection = tempSelections.value[record.id];
+            const currentSelectionValue = tempSelection !== undefined ? tempSelection : (originalVoted ? 'yes' : 'no');
+            return {
+                ...record,
+                voted: originalVoted,
+                selectedVoteStatus: currentSelectionValue
+            };
+        });
+     // console.log("Updated displayedRecords:", displayedRecords.value); // Debug log
+}
 
 // Computed properties based on the *full* dataset for pagination
 const totalRecords = computed(() => allMandoobRecords.value.length);
 const totalPages = computed(() => Math.ceil(totalRecords.value / itemsPerPage.value));
 
-// Helper to check if selection differs from original voted status
+// Helper to check if temporary selection differs from original voted status
 function hasSelectionChanged(record) {
-    // Check if there's an entry in tempSelections for this record
     const tempValue = tempSelections.value[record.id];
-    if (tempValue === undefined) {
-        return false; // No change made yet
-    }
-    // Compare the temp selection (boolean) with the original voted status (boolean)
+    if (tempValue === undefined) return false;
     const selectedBoolean = tempValue === 'yes';
     return record.voted !== selectedBoolean;
 }
 
-// --- Standard Functions (showMessage, loadData, goToPage, handleLogout) ---
+// --- Standard Functions ---
 function showMessage(type, message, duration = 4000) {
   if (messageTimeout) clearTimeout(messageTimeout);
   errorMessage.value = null;
@@ -176,20 +168,24 @@ function showMessage(type, message, duration = 4000) {
 
 async function loadData() {
   recordsLoading.value = true;
-  tempSelections.value = {}; // Clear temporary selections on reload
+  tempSelections.value = {};
   showMessage(null, '');
   try {
     const result = await fetchMandoobRecords();
     if (result.success && Array.isArray(result.data)) {
-      allMandoobRecords.value = result.data; // Update the source array
-      currentPage.value = 1; // Reset page
+      allMandoobRecords.value = result.data; // This triggers the watcher
+      currentPage.value = 1; // Ensure page is reset, watcher updates display
+      // Explicitly call after setting data and page if watcher timing is off
+      // calculateDisplayedRecords();
     } else {
       showMessage('error', result.error?.message || 'Failed to load records.');
       allMandoobRecords.value = [];
+      displayedRecords.value = []; // Also clear display list
     }
   } catch (err) {
     showMessage('error', `Error loading data: ${err.message}`);
     allMandoobRecords.value = [];
+    displayedRecords.value = [];
   } finally {
     recordsLoading.value = false;
   }
@@ -197,8 +193,8 @@ async function loadData() {
 
 function goToPage(page) {
   if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
-    currentPage.value = page;
-    tempSelections.value = {}; // Clear temp selections when changing page
+    currentPage.value = page; // This triggers the watcher
+    tempSelections.value = {};
     window.scrollTo(0, 0);
   }
 }
@@ -215,65 +211,52 @@ async function handleLogout() {
   }
 }
 
-// --- Interaction Functions ---
-
 // Update temporary selection state when dropdown changes
 function onDropdownChange(event, recordId) {
-    const selectedValue = event.target.value; // 'yes' or 'no'
-    // Store the selection in the temporary state object
+    const selectedValue = event.target.value;
     tempSelections.value[recordId] = selectedValue;
-    // Note: We don't need to manually update displayedRecords here,
-    // the computed property `mandoobRecords` will re-run and use the new
-    // value from `tempSelections.value[recordId]`
+    // Force displayedRecords to update for immediate visual feedback if needed
+    // (though computed property on tempSelections might handle this implicitly)
+     calculateDisplayedRecords(); // Re-run calculation to update selectedVoteStatus visually
 }
 
 // Send API request when confirm button is clicked
 async function confirmVoteUpdate(record) {
   const recordId = record.id;
-  // Get the status to send from the temporary state
   const selectedStatusString = tempSelections.value[recordId];
-  if (selectedStatusString === undefined) {
-      console.warn('Confirm clicked but no temporary selection found for', recordId);
-      return; // Should not happen if button v-if is correct
+  if (selectedStatusString !== 'yes') {
+      delete tempSelections.value[recordId];
+      console.warn(`Confirm clicked for ${recordId} but selection != 'yes'.`);
+      calculateDisplayedRecords(); // Recalculate to reset dropdown visual
+      return;
   }
-  const newVotedStatus = selectedStatusString === 'yes'; // Boolean status to send
 
-  // Find the original record index in the full list for updating
   const originalRecordIndex = allMandoobRecords.value.findIndex(r => r.id === recordId);
-  if (originalRecordIndex === -1) {
-    console.error(`Original record with ID ${recordId} not found.`);
-    return;
-  }
+  if (originalRecordIndex === -1) return;
 
-  if (updatingVoteId.value === recordId) return; // Prevent re-click
+  if (updatingVoteId.value === recordId) return;
 
   updatingVoteId.value = recordId;
   showMessage(null, '');
 
   try {
-    const result = await updateMandoobVote(recordId, newVotedStatus);
+    const result = await updateMandoobVote(recordId); // Call with ID only
 
     if (result.success) {
       showMessage('success', result.message || `Record ${recordId} updated.`);
-      // Update the *original* record data robustly
-      const updatedRecord = {
-          ...allMandoobRecords.value[originalRecordIndex],
-          voted: newVotedStatus // Update the actual 'voted' status
-      };
+      // Update the original data - set voted to TRUE
+      const updatedRecord = { ...allMandoobRecords.value[originalRecordIndex], voted: true };
       allMandoobRecords.value.splice(originalRecordIndex, 1, updatedRecord);
-      // Remove the temporary selection state for this record now that it's saved
+      // Clear the temporary state (watcher will update display)
       delete tempSelections.value[recordId];
-      // The computed property will now re-render using the updated original data
     } else {
       showMessage('error', result.error?.message || `Failed to update vote for ${recordId}.`);
-      // Keep the temporary selection on failure, so the user sees what they tried to save
-      // Optionally, clear the temp state: delete tempSelections.value[recordId];
+      // Keep temp state on failure
     }
   } catch (err) {
     console.error("Error during vote update API call:", err);
     showMessage('error', `Error updating vote: ${err.message}`);
-     // Keep the temporary selection on failure
-     // Optionally, clear the temp state: delete tempSelections.value[recordId];
+    // Keep temp state on error
   } finally {
     if (updatingVoteId.value === recordId) {
         updatingVoteId.value = null;
@@ -287,13 +270,13 @@ onMounted(async () => {
   try {
     const sessionResult = await checkSession();
     if (!sessionResult.success) {
-      showMessage('error', `Session invalid: ${sessionResult.error?.message || 'Please log in.'}`, 6000);
+      showMessage('error', `Session invalid: ${sessionResult.error?.message || 'Log in.'}`, 6000);
       await router.push('/');
       return;
     }
-    await loadData(); // Explicitly load data after session check
+    await loadData(); // Load data after session check
   } catch (err) {
-    console.error('Initialization error:', err);
+    console.error('Init error:', err);
     showMessage('error', 'Init failed. Redirecting.', 6000);
     await router.push('/');
     recordsLoading.value = false;
@@ -357,23 +340,24 @@ td.action-cell {
   text-align: center;
   vertical-align: middle;
   padding: 5px;
-  width: 220px; /* Increased width for select + confirm */
-  position: relative; /* Needed for spinner absolute positioning? Maybe not */
+  width: 220px;
+  height: 52px;
+  box-sizing: border-box;
 }
 
-/* Container for select and button */
 .select-confirm-wrapper {
   display: flex;
   align-items: center;
   gap: 8px;
   justify-content: center;
-  width: 100%; /* Ensure wrapper takes cell width */
+  width: 100%;
+  height: 100%;
 }
 
 .vote-select {
   appearance: none; -webkit-appearance: none;
-  flex-basis: 130px; /* Give select a base width */
-  flex-grow: 0; /* Don't allow select to grow excessively */
+  flex-basis: 130px;
+  flex-grow: 0;
   flex-shrink: 0;
   height: 40px;
   padding: 0 35px 0 15px;
@@ -388,7 +372,7 @@ td.action-cell {
   background-position: right 12px center;
   background-size: 14px 14px;
   cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
   outline: none;
   text-align: center;
   box-sizing: border-box;
@@ -406,18 +390,19 @@ td.action-cell {
 }
 .vote-select option[value="yes"] { color: var(--success-color); }
 .vote-select option[value="no"] { color: var(--text-color-light); }
+
 .vote-select:disabled {
-  background-color: var(--disabled-bg-color);
-  color: var(--disabled-text-color);
+  background-color: var(--input-bg-color);
+  color: var(--success-color);
+  border-color: rgba(52, 199, 89, 0.3);
   cursor: not-allowed;
-  opacity: 0.7;
+  opacity: 0.75;
    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%237e8a9e' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
 }
 
-/* Confirm Button Styles */
 .confirm-update-btn {
   padding: 0 15px;
-  background-color: var(--accent-color); /* Red */
+  background-color: var(--accent-color);
   color: white;
   border: none;
   border-radius: 6px;
@@ -439,23 +424,16 @@ td.action-cell {
   cursor: not-allowed;
   opacity: 0.7;
 }
-.button-spinner { margin-right: 6px; }
+.button-spinner { margin-right: 6px; } /* Spinner inside button */
 
-
-/* Spinner shown in place of wrapper */
-.action-cell > .loading-spinner.small {
-    margin: 0 auto; /* Center spinner if wrapper is hidden */
+.action-cell > .loading-spinner.small { /* Spinner replacing controls */
+    margin: 0 auto;
     display: block;
-    padding: 11px 0; /* Adjust vertical position */
+    padding: 11px 0;
 }
-/* Hide wrapper when loading */
-.action-cell > .select-confirm-wrapper {
-    display: flex; /* Default */
-}
-.action-cell > span + .select-confirm-wrapper { /* If spinner is shown */
+.action-cell > span + .select-confirm-wrapper {
     display: none;
 }
-
 
 .pagination { text-align: center; margin-top: 25px; display: flex; justify-content: center; align-items: center; gap: 10px; }
 .pagination span { padding: 8px 12px; color: var(--text-color-muted); font-size: 14px; }
