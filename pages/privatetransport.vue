@@ -1,22 +1,18 @@
 <template>
     <div class="wrapper private-transport-page">
-      <!-- Logout Button -->
       <button @click="handleLogout" class="logout-btn">
         Logout ({{ currentUser || 'admin' }})
       </button>
-
-      <!-- Navigation -->
+  
       <nav class="main-nav">
         <NuxtLink to="/elections">Election Management</NuxtLink>
         <NuxtLink to="/transport">Transport Management</NuxtLink>
         <NuxtLink to="/privatetransport">Private Transport</NuxtLink>
-        <NuxtLink to="/stats">Voting Stats</NuxtLink> 
+        <NuxtLink to="/stats">Voting Stats</NuxtLink>
       </nav>
-
-      <!-- Main Title -->
+  
       <h1>Private Transport Management</h1>
-
-      <!-- Success/Error Messages -->
+  
       <transition name="fade">
         <div v-if="successMessage" class="message success-message">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -29,14 +25,13 @@
           <span>{{ errorMessage }}</span>
         </div>
       </transition>
-
-      <!-- Filter Container -->
+  
       <div class="filter-container">
         <form @submit.prevent="applyFilters">
           <div class="form-group">
             <label for="isPrivateCar">Private Car:</label>
             <select id="isPrivateCar" v-model="selectedIsPrivateCar" @change="applyFilters">
-              <option value="">All</option> <!-- Represents filtering for both true and false -->
+              <option value="">All</option>
               <option v-if="privateCarStatusesLoading" value="" disabled>Loading...</option>
               <option v-for="status in privateCarStatusOptions" :key="status.value" :value="status.value">
                 {{ status.text }}
@@ -45,7 +40,6 @@
           </div>
           <div class="form-group">
             <label for="routeNumber">License Plate:</label>
-            <!-- Use @input for immediate filtering as user types -->
             <input type="text" id="routeNumber" v-model="selectedRouteNumber" @input="applyFilters">
           </div>
           <div class="form-group">
@@ -60,7 +54,6 @@
           </div>
           <div class="form-group">
             <label for="passengersCountFilter">Passengers (Min):</label>
-            <!-- Use @input for immediate filtering -->
             <input type="number" id="passengersCountFilter" v-model.number="selectedPassengersCountMin" min="0" @input="applyFilters">
           </div>
           <button type="submit" :disabled="recordsLoading">
@@ -69,8 +62,7 @@
           </button>
         </form>
       </div>
-
-      <!-- Table Container -->
+  
       <div class="table-container" dir="rtl">
         <table>
           <thead>
@@ -82,25 +74,24 @@
                     <th>اسم الأم</th>
                     <th>تاريخ الولادة</th>
                     <th>الجنس</th>
-                    <th>الديانة</th>     
+                    <th>الديانة</th>
                     <th>سيارة خاصة</th>
                     <th>رقم السيارة</th>
                     <th>نوع السيارة</th>
                     <th>عدد الركاب</th>
                     <th>انتخب</th>
-                    <th>ma3na</th> 
+                    <th>ma3na</th>
                 </tr>
           </thead>
           <tbody>
             <tr v-if="recordsLoading">
-              <td colspan="14" style="text-align: center;"> <!-- Step 4: Changed to 13 -->
+              <td colspan="14" style="text-align: center;">
                 <span class="loading-spinner"></span> Loading data...
               </td>
             </tr>
             <tr v-else-if="!recordsLoading && privateTransportRecords.length === 0">
-              <td colspan="14" style="text-align: center;">No records found for the selected filters.</td> <!-- Step 4: Changed to 13 -->
+              <td colspan="14" style="text-align: center;">No records found for the selected filters.</td>
             </tr>
-            <!-- Display simplified data -->
             <tr v-else v-for="record in privateTransportRecords" :key="record.id">
                 <td>{{ record.register }}</td>
                 <td>{{ record.family }}</td>
@@ -115,68 +106,54 @@
                 <td>{{ record.route_type }}</td>
                 <td>{{ record.passengers_count }}</td>
                 <td>{{ record.elected }}</td>
-                <td>{{ record.with_us }}</td>  <!-- Step 3: Added Data Cell -->
+                <td>{{ record.with_us }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-
-      <!-- Pagination -->
+  
       <div class="pagination" v-if="totalPages > 1 && !recordsLoading">
         <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">Previous</button>
         <span>Page {{ currentPage }} of {{ totalPages }}</span>
         <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages">Next</button>
       </div>
-
+  
       <p class="copyright">© {{ new Date().getFullYear() }} Kartaba 2040 All rights reserved.</p>
     </div>
   </template>
-
+  
   <script setup>
   import { ref, onMounted } from 'vue';
   import { useRouter } from '#app';
-
-  // 1. Import the SIMPLIFIED JSON file
   import privateTransportData from '@/db.json';
-
-  // --- State ---
+  
   const router = useRouter();
   const currentUser = ref(null);
-  // In your <script setup> block, below your existing `ref()` declarations
-
-// State for Voter Counts
-const votedCount = ref(0);
-const notVotedCount = ref(0);
-
-// ... rest of your state variables (privateTransportRecords, etc.)
-
-  // Filters
-  const selectedIsPrivateCar = ref(''); // Use '' for 'All'
+  const votedCount = ref(0);
+  const notVotedCount = ref(0);
+  
+  const selectedIsPrivateCar = ref('');
   const selectedRouteNumber = ref('');
   const selectedRouteType = ref('');
-  const selectedPassengersCountMin = ref(null); // Use null for no min filter
-
-  // Dropdown Options & Loading States
+  const selectedPassengersCountMin = ref(null);
+  
   const privateCarStatusOptions = ref([]);
-  const privateCarStatusesLoading = ref(false); // For UI feedback
+  const privateCarStatusesLoading = ref(false);
   const routeTypeOptions = ref([]);
-  const routeTypesLoading = ref(false); // For UI feedback
-
-  // Table Data & State
-  const privateTransportRecords = ref([]); // Displayed records (paginated)
-  const allJsonPrivateTransportRecords = ref([]); // All records from JSON
-  const recordsLoading = ref(false); // Table loading indicator
+  const routeTypesLoading = ref(false);
+  
+  const privateTransportRecords = ref([]);
+  const allJsonPrivateTransportRecords = ref([]);
+  const recordsLoading = ref(false);
   const errorMessage = ref(null);
   const successMessage = ref(null);
   let messageTimeout = null;
-
-  // Pagination
+  
   const currentPage = ref(1);
   const totalPages = ref(1);
   const itemsPerPage = ref(50);
-  const totalRecords = ref(0); // Filtered record count
-
-  // --- Utility Functions ---
+  const totalRecords = ref(0);
+  
   function showMessage(type, message, duration = 4000) {
     if (messageTimeout) clearTimeout(messageTimeout);
     if (type === 'success') {
@@ -191,30 +168,20 @@ const notVotedCount = ref(0);
       errorMessage.value = null;
     }, duration);
   }
-
-  // --- Data Processing (from JSON) ---
-
-  // Load initial dropdown options and all records from JSON
+  
   function loadInitialPrivateTransportData() {
     privateCarStatusesLoading.value = true;
     routeTypesLoading.value = true;
     recordsLoading.value = true;
-
+  
     try {
-      // Load options from JSON
       privateCarStatusOptions.value = privateTransportData.private_car_statuses || [];
       routeTypeOptions.value = privateTransportData.route_types || [];
-
-      // Load all records from JSON
       allJsonPrivateTransportRecords.value = privateTransportData.private_transport_records_simplified || [];
-
-      // Apply initial filtering/pagination
       filterAndPaginatePrivateTransportRecords();
-
     } catch (err) {
       showMessage('error', err.message || 'Failed to load initial simplified private transport data from JSON.');
       console.error(err);
-      // Reset state on error
       privateCarStatusOptions.value = [];
       routeTypeOptions.value = [];
       allJsonPrivateTransportRecords.value = [];
@@ -226,24 +193,20 @@ const notVotedCount = ref(0);
     } finally {
       privateCarStatusesLoading.value = false;
       routeTypesLoading.value = false;
-      // recordsLoading set in filterAndPaginate...
     }
   }
-
-  // Filter and Paginate the records stored locally
+  
   function filterAndPaginatePrivateTransportRecords() {
     recordsLoading.value = true;
     try {
       let filtered = [...allJsonPrivateTransportRecords.value];
-
-      // Apply filters
+  
       if (selectedIsPrivateCar.value !== '') {
-        const filterBoolean = selectedIsPrivateCar.value === 'true'; // Convert string from select to boolean
+        const filterBoolean = selectedIsPrivateCar.value === 'true';
         filtered = filtered.filter(record => record.is_private_car === filterBoolean);
       }
       if (selectedRouteNumber.value) {
         const searchTerm = selectedRouteNumber.value.toLowerCase();
-        // Make sure route_number exists before calling toLowerCase()
         filtered = filtered.filter(record =>
            record.route_number && record.route_number.toLowerCase().includes(searchTerm)
         );
@@ -251,31 +214,26 @@ const notVotedCount = ref(0);
       if (selectedRouteType.value) {
         filtered = filtered.filter(record => record.route_type === selectedRouteType.value);
       }
-      // Apply passenger count minimum filter
       if (selectedPassengersCountMin.value !== null && selectedPassengersCountMin.value >= 0) {
           filtered = filtered.filter(record => record.passengers_count >= selectedPassengersCountMin.value);
       }
-
-
-      // Update pagination state
+  
       totalRecords.value = filtered.length;
       totalPages.value = Math.ceil(totalRecords.value / itemsPerPage.value);
-
-      // Adjust current page if it's now invalid
+  
       if (currentPage.value > totalPages.value) {
-        currentPage.value = totalPages.value > 0 ? 1 : 1; // Reset to 1 if needed
+        currentPage.value = totalPages.value > 0 ? 1 : 1;
       }
       if (currentPage.value < 1 && totalPages.value >= 1) {
         currentPage.value = 1;
       }
-
-      // Apply pagination slicing
+  
       const startIndex = (currentPage.value - 1) * itemsPerPage.value;
       const endIndex = startIndex + itemsPerPage.value;
       privateTransportRecords.value = (currentPage.value >= 1 && filtered.length > 0)
                                       ? filtered.slice(startIndex, endIndex)
                                       : [];
-
+  
     } catch (err) {
       showMessage('error', 'Error filtering or paginating private transport records.');
       console.error(err);
@@ -287,27 +245,21 @@ const notVotedCount = ref(0);
       recordsLoading.value = false;
     }
   }
-
-  // --- Event Handlers ---
-
-  // Apply filters and reset pagination
+  
   function applyFilters() {
     currentPage.value = 1;
     filterAndPaginatePrivateTransportRecords();
   }
-
-  // Navigate pagination
+  
   function goToPage(page) {
     if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
       currentPage.value = page;
       filterAndPaginatePrivateTransportRecords();
     }
   }
-
-  // Logout (Optional - uses backend)
+  
   async function handleLogout() {
     try {
-      // Assuming useFetch is globally available in Nuxt 3
       await useFetch('/api/auth/logout', { method: 'POST' });
       localStorage.removeItem('currentUser');
       currentUser.value = null;
@@ -317,19 +269,15 @@ const notVotedCount = ref(0);
       console.error('Logout error:', error);
     }
   }
-
-  // --- Lifecycle Hooks ---
+  
   onMounted(() => {
     currentUser.value = localStorage.getItem('currentUser');
-    // Load initial data from JSON
     loadInitialPrivateTransportData();
   });
-
+  
   </script>
-
+  
   <style>
-  /* --- GLOBAL STYLES --- */
-  /* Assume :root variables and base styles are defined globally */
   :root {
     --primary-bg-color: #1a233a;
     --card-bg-color: #2a3b52;
@@ -346,7 +294,7 @@ const notVotedCount = ref(0);
     --error-bg: rgba(255, 69, 58, 0.1);
     --success-color: #34C759;
     --success-bg: rgba(52, 199, 89, 0.1);
-    --table-header-bg: #00000085; /* Header color from previous style */
+    --table-header-bg: #00000085;
     --table-even-row-bg: #1f2940;
     --table-border-color: #3a4a63;
   }
@@ -357,16 +305,15 @@ const notVotedCount = ref(0);
     font-family: 'Cairo', 'Tajawal', 'SF Pro Display', 'Inter', system-ui, sans-serif;
   }
   </style>
-
+  
   <style scoped>
-  /* --- Component Specific Styles --- */
   .wrapper.private-transport-page {
     max-width: 1400px; margin: 0 auto; padding: 40px 20px 60px 20px;
     box-sizing: border-box; position: relative;
   }
   h1 {
     color: var(--text-color-lighter); margin-bottom: 25px; text-align: center;
-    margin-top: 60px; /* Clears nav */
+    margin-top: 60px;
   }
   .logout-btn {
     position: absolute; top: 41px; right: 20px; padding: 8px 15px;
@@ -375,7 +322,7 @@ const notVotedCount = ref(0);
     transition: background-color 0.2s ease; z-index: 100;
   }
   .logout-btn:hover { background-color: var(--accent-hover); }
-
+  
   .main-nav {
     text-align: center; padding: 10px; background-color: var(--card-bg-color);
     border-radius: 8px; position: relative; z-index: 50; margin-bottom: 20px;
@@ -386,12 +333,12 @@ const notVotedCount = ref(0);
   }
   .main-nav a:hover { background-color: var(--accent-hover); color: white; }
   .main-nav a.router-link-exact-active { background-color: var(--accent-color); color: white; }
-
+  
   .message { padding: 12px 15px; margin: 15px 0; border-radius: 6px; display: flex; align-items: center; gap: 10px; font-size: 14px; border-left-width: 4px; border-left-style: solid; }
   .message svg { flex-shrink: 0; }
   .success-message { background-color: var(--success-bg); color: var(--success-color); border-left-color: var(--success-color); }
   .error-message { background-color: var(--error-bg); color: var(--error-color); border-left-color: var(--error-color); }
-
+  
   .filter-container { margin-bottom: 25px; padding: 20px; background-color: var(--card-bg-color); border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
   .filter-container form { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
   .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
@@ -406,45 +353,40 @@ const notVotedCount = ref(0);
   button[type="submit"], .pagination button { padding: 10px 20px; border: none; background-color: var(--accent-color); color: white; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; }
   button[type="submit"]:hover:not(:disabled), .pagination button:hover:not(:disabled) { background-color: var(--accent-hover); }
   button:disabled { opacity: 0.65; cursor: not-allowed; }
-
-  /* Table Styles */
+  
   .table-container {
     max-height: 65vh; overflow-y: auto; border: 1px solid var(--table-border-color);
     border-radius: 8px; background-color: var(--primary-bg-color);
   }
   table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid var(--table-border-color); padding: 10px 12px; font-size: 14px; vertical-align: middle; white-space: nowrap; /* Prevent text wrapping */ }
+  th, td { border: 1px solid var(--table-border-color); padding: 10px 12px; font-size: 14px; vertical-align: middle; white-space: nowrap; }
   .table-container[dir="rtl"] table th,
   .table-container[dir="rtl"] table td {
     text-align: right;
   }
   thead th {
-    background-color: #000000; /* Black header */
-    color: #ffffff; /* White text */
+    background-color: #000000;
+    color: #ffffff;
     position: sticky; top: 0; z-index: 10; font-weight: 600;
   }
   tbody tr:nth-child(even) { background-color: var(--table-even-row-bg); }
   tbody tr:hover { background-color: var(--card-bg-color); }
-
-  /* Pagination */
+  
   .pagination {
     text-align: center; margin-top: 25px; display: flex; justify-content: center; align-items: center; gap: 10px;
   }
   .pagination span { padding: 8px 12px; color: var(--text-color-muted); font-size: 14px; }
   .pagination button { padding: 8px 15px; }
-
-  /* Loading Spinner */
+  
   .loading-spinner {
     display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%; border-top-color: var(--text-color-lighter); animation: spin 0.8s linear infinite;
   }
   .loading-spinner.small { width: 14px; height: 14px; border-width: 2px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Transitions */
+  
   .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
   .fade-enter-from, .fade-leave-to { opacity: 0; }
-
-  /* Copyright */
+  
   .copyright { margin-top: 30px; font-size: 12px; color: rgba(255, 255, 255, 0.4); text-align: center; }
   </style>

@@ -1,30 +1,25 @@
 <template>
     <div class="wrapper stats-page">
-      <!-- Navigation Bar -->
       <nav class="main-nav">
         <NuxtLink to="/elections">Election Management</NuxtLink>
         <NuxtLink to="/transport">Transport Management</NuxtLink>
         <NuxtLink to="/privatetransport">Private Transport</NuxtLink>
         <NuxtLink to="/stats">Voting Stats</NuxtLink>
       </nav>
-  
+
       <h1 class="main-title">Voting Statistics Dashboard</h1>
-  
-      <!-- Loading State -->
+
       <div v-if="loading" class="loading-message">
         <span class="loading-spinner"></span> Loading dashboard data...
       </div>
-  
-      <!-- Error State -->
+
       <div v-else-if="errorMessage" class="message error-message">
          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
          <span>{{ errorMessage }}</span>
       </div>
-  
-      <!-- Charts Container -->
+
       <div v-else class="charts-container">
-  
-        <!-- Overall Chart (Doughnut) - Remains the same -->
+
         <div class="chart-wrapper overall-chart-wrapper" v-if="overallChartData">
           <h2 class="chart-title">Overall Voting Status</h2>
           <Doughnut
@@ -41,12 +36,10 @@
             <h2 class="chart-title">Overall Voting Status</h2>
             <p class="error-text">Could not display overall voting data.</p>
         </div>
-  
-        <!-- Sijil Selector & Focused Chart -->
+
         <div class="chart-wrapper sijil-focus-wrapper">
            <h2 class="chart-title">Votes for Specific Sijil (السجل)</h2>
-  
-           <!-- Sijil Selector Dropdown -->
+
            <div class="sijil-selector form-group">
              <label for="sijilSelect">Select Sijil:</label>
              <select id="sijilSelect" v-model="selectedSijil" @change="updateSijilChart">
@@ -56,37 +49,32 @@
                </option>
              </select>
            </div>
-  
-           <!-- Focused Sijil Chart Area -->
+
            <div class="focused-chart-area">
-              <!-- Show prompt if no selection -->
               <div v-if="!selectedSijil" class="prompt-message">
                   Please select a Sijil number from the dropdown above to see details.
               </div>
-              <!-- Show chart if selection made and data exists -->
               <Bar v-else-if="sijilChartData && sijilChartData.datasets[0]?.data.length > 0"
                 id="sijil-focus-chart"
                 :options="singleSijilChartOptions"
                 :data="sijilChartData"
                 class="chart-canvas"
               />
-              <!-- Show message if selection made but no data (e.g., Sijil exists but no one voted/not-voted?) -->
                <div v-else class="error-text">
                   No voting data found for Sijil {{ selectedSijil }}.
                </div>
            </div>
-  
+
         </div>
-  
+
       </div>
-  
-      <!-- Copyright footer -->
+
       <p class="copyright">© {{ new Date().getFullYear() }} Kartaba 2040 All rights reserved.</p>
     </div>
   </template>
-  
+
   <script setup>
-  import { ref, onMounted, computed, watch } from 'vue'; // Added watch
+  import { ref, onMounted, computed, watch } from 'vue';
   import { Bar, Doughnut } from 'vue-chartjs';
   import {
     Chart as ChartJS,
@@ -98,13 +86,11 @@
     LinearScale,
     ArcElement
   } from 'chart.js';
-  
-  // *** Ensure path is correct ***
+
   import allData from '@/db.json';
-  
+
   ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement);
-  
-  // --- Constants ---
+
   const POSITIVE_VOTE_VALUE = 'Yes';
   const UNKNOWN_SIJIL_LABEL = "Unknown Sijil";
   const colorVoted = '#34C759';
@@ -115,20 +101,16 @@
   const colorTextMuted = 'rgba(230, 230, 230, 0.7)';
   const colorGridLines = 'rgba(255, 255, 255, 0.1)';
   const colorTooltipBg = 'rgba(0, 0, 0, 0.8)';
-  
-  // --- State Variables ---
+
   const loading = ref(true);
   const errorMessage = ref(null);
   const records = ref([]);
-  const selectedSijil = ref(''); // CHANGE: State for the dropdown selection, start with empty string
-  
-  // Refs for Chart Data
+  const selectedSijil = ref('');
+
   const overallChartData = ref(null);
-  const sijilChartData = ref(null); // This will now hold data for the *selected* Sijil
-  
-  // --- Chart Options ---
-  
-  const doughnutChartOptions = ref({ // Options for the Doughnut chart (remains same)
+  const sijilChartData = ref(null);
+
+  const doughnutChartOptions = ref({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -137,78 +119,65 @@
     },
     cutout: '60%',
   });
-  
-  // CHANGE: Options specifically for the single Sijil Bar Chart
+
   const singleSijilChartOptions = ref({
     responsive: true,
     maintainAspectRatio: false,
-     indexAxis: 'y', // Optional: Make bars horizontal for easier reading of labels if needed
+     indexAxis: 'y',
     plugins: {
-      legend: { display: false }, // Hide legend, bars are self-explanatory
+      legend: { display: false },
       tooltip: {
          bodyColor: colorTextLight,
          backgroundColor: colorTooltipBg,
          padding: 10,
          boxPadding: 4,
-         // Customize tooltip title or labels if needed
-         // callbacks: { label: (context) => `${context.label}: ${context.formattedValue}` }
       },
-       title: { // Add a dynamic title within the chart
+       title: {
           display: true,
-          text: () => `Voting Breakdown for Sijil: ${selectedSijil.value}`, // Dynamic title!
+          text: () => `Voting Breakdown for Sijil: ${selectedSijil.value}`,
           color: colorTextLight,
           font: { size: 14 },
           padding: { top: 0, bottom: 10 }
       }
     },
     scales: {
-      y: { // Was X axis for vertical bars
-          // Now represents the categories ('Voted', 'Not Voted') if indexAxis: 'y'
+      y: {
           ticks: { color: colorTextMuted, font: { size: 13 } },
-          grid: { color: colorGridLines, drawOnChartArea: false } // Hide grid lines for categories
+          grid: { color: colorGridLines, drawOnChartArea: false }
       },
-      x: { // Was Y axis for vertical bars
-         // Now represents the count
+      x: {
           beginAtZero: true,
-          ticks: { color: colorTextMuted, precision: 0 }, // Integer ticks
+          ticks: { color: colorTextMuted, precision: 0 },
           grid: { color: colorGridLines }
       }
     }
   });
-  
-  
-  // --- Data Processing (Computed Properties) ---
-  
+
+
   const totalRecordsCount = computed(() => records.value?.length ?? 0);
-  
-  // CHANGE: Computed property to get unique, sorted Sijil numbers for the dropdown
+
   const availableSijils = computed(() => {
     if (!records.value || records.value.length === 0) {
       return [];
     }
-    // Use Set for unique values, filter out null/undefined registers
     const uniqueSijils = new Set(
       records.value
         .map(r => r.register)
         .filter(s => s !== null && s !== undefined)
-        .map(s => s.toString()) // Ensure strings for consistency if mixed types
+        .map(s => s.toString())
     );
-  
-    // Convert Set to array and sort numerically
+
     return Array.from(uniqueSijils).sort((a, b) => {
       const numA = parseInt(a, 10);
       const numB = parseInt(b, 10);
-      // Basic numeric sort, handles potential non-numeric values gracefully
       if (!isNaN(numA) && !isNaN(numB)) {
           return numA - numB;
       }
-      return a.localeCompare(b); // Fallback to string sort
+      return a.localeCompare(b);
     });
   });
-  
-  // Overall Voting Data (remains the same)
+
   const overallVotingStats = computed(() => {
-      // ... (keep the existing overallVotingStats computed logic) ...
       if (!records.value || records.value.length === 0) return { voted: 0, notVoted: 0 };
       let voted = 0, notVoted = 0;
       records.value.forEach(record => {
@@ -217,23 +186,19 @@
       });
       return { voted, notVoted };
   });
-  
-  
-  // CHANGE: Function to calculate and set data for the *selected* Sijil
-  // We make this a function triggered by selection change, not a computed property that runs automatically
-  // Or alternatively, keep it computed but make it depend on selectedSijil
+
+
   function calculateSelectedSijilData() {
     if (!selectedSijil.value || !records.value || records.value.length === 0) {
-      sijilChartData.value = null; // Clear chart data if no selection
+      sijilChartData.value = null;
       return;
     }
-  
+
     let voted = 0;
     let notVoted = 0;
-    const currentSijil = selectedSijil.value; // Get the selected value
-  
+    const currentSijil = selectedSijil.value;
+
     records.value.forEach(record => {
-      // Filter for the selected Sijil
       if (record.register !== null && record.register !== undefined && record.register.toString() === currentSijil) {
         if (record.elected && record.elected.toString().toLowerCase() === POSITIVE_VOTE_VALUE.toLowerCase()) {
           voted++;
@@ -242,43 +207,37 @@
         }
       }
     });
-  
-    // Prepare data structure for the simple bar chart (Voted vs Not Voted)
+
     sijilChartData.value = {
-      labels: ['Voted (انتخب)', 'Did Not Vote / No Data (لم ينتخب)'], // Categories for the bars
+      labels: ['Voted (انتخب)', 'Did Not Vote / No Data (لم ينتخب)'],
       datasets: [{
-        label: `Sijil ${currentSijil} Votes`, // Dataset label (might show in tooltip)
+        label: `Sijil ${currentSijil} Votes`,
         data: [voted, notVoted],
         backgroundColor: [colorVoted, colorNotVoted],
         borderColor: [colorVotedBorder, colorNotVotedBorder],
         borderWidth: 1,
-        // Optional: adjust bar thickness
-        // categoryPercentage: 0.6, // Takes 60% of the available space for the category
-         barPercentage: 0.7, // Takes 70% of the category space for the bar itself
+         barPercentage: 0.7,
       }]
     };
      console.log(`Updated chart data for Sijil ${currentSijil}:`, sijilChartData.value);
   }
-  
-  // CHANGE: Use a watcher to react to changes in `selectedSijil`
+
   watch(selectedSijil, (newValue, oldValue) => {
       console.log(`Sijil selection changed from ${oldValue} to ${newValue}`);
-      calculateSelectedSijilData(); // Recalculate when selection changes
+      calculateSelectedSijilData();
   });
-  
-  
-  // --- Lifecycle Hook (onMounted) ---
+
+
   onMounted(() => {
     console.log("Stats page mounted. Initializing...");
     loading.value = true;
     errorMessage.value = null;
-  
+
     try {
       if (allData && Array.isArray(allData.records)) {
           records.value = allData.records;
           console.log(`Loaded ${records.value.length} records.`);
-  
-          // Prepare Doughnut Chart Data (only needs overall stats)
+
           overallChartData.value = {
               labels: ['Voted', 'Did Not Vote / No Data'],
               datasets: [{
@@ -291,12 +250,11 @@
               }]
           };
           console.log("Overall chart data prepared:", overallChartData.value);
-  
-          // Don't calculate Sijil data initially, wait for user selection
+
           sijilChartData.value = null;
-  
+
       } else {
-           console.error("Data loading error: 'private_transport_records_simplified' array not found or invalid in db.json");
+           console.error("Data loading error: 'records' array not found or invalid in db.json");
            errorMessage.value = "Failed to load data: Invalid data structure in db.json.";
            records.value = []; overallChartData.value = null; sijilChartData.value = null;
       }
@@ -309,17 +267,11 @@
       console.log("Initialization finished.");
     }
   });
-  
-  // Optional: Method handler for @change if needed, but watcher covers it
-  // function updateSijilChart() {
-  //     calculateSelectedSijilData();
-  // }
-  
+
   </script>
-  
+
   <style scoped>
-  /* --- Component Specific Styles --- */
-  :root { /* Define color variables (ideally globally) */
+  :root {
       --stats-bg-color: #1a233a; --stats-card-bg: #2a3b52; --stats-text-light: #f0f0f0;
       --stats-text-heading: #ffffff; --stats-text-muted: #a0a8c4; --stats-accent: #FF3B30;
       --stats-accent-hover: #E02E24; --stats-success: #34C759; --stats-success-border: rgba(52, 199, 89, 0.7);
@@ -328,7 +280,7 @@
       --input-bg-color: rgba(30, 34, 53, 0.7); --input-border-color: rgba(255, 255, 255, 0.1);
        --input-focus-border: rgba(255, 59, 48, 0.5); --input-focus-shadow: rgba(255, 59, 48, 0.15);
   }
-  
+
   .wrapper.stats-page { max-width: 1300px; margin: 0 auto; padding: 30px 20px 60px 20px; box-sizing: border-box; position: relative; color: var(--stats-text-light); background-color: var(--stats-bg-color); }
   .main-title { color: var(--stats-text-heading); text-align: center; margin-bottom: 40px; margin-top: 0; font-size: 2.2em; font-weight: 600; }
   .main-nav { text-align: center; padding: 12px; background-color: var(--stats-card-bg); border-radius: 10px; margin-bottom: 40px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; box-shadow: var(--stats-shadow); }
@@ -343,23 +295,19 @@
   .error-message { background-color: rgba(255, 59, 48, 0.1); color: var(--stats-danger); border-left-color: var(--stats-danger); }
   .error-text { text-align: center; color: var(--stats-text-muted); padding: 30px 10px; font-style: italic; font-size: 0.95em; flex-grow: 1; display: flex; align-items: center; justify-content: center; }
   .charts-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr)); gap: 35px; margin-top: 30px; }
-  .chart-wrapper { background-color: var(--stats-card-bg); padding: 30px; border-radius: 12px; box-shadow: var(--stats-shadow); min-height: 450px; /* Increased min-height */ display: flex; flex-direction: column; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+  .chart-wrapper { background-color: var(--stats-card-bg); padding: 30px; border-radius: 12px; box-shadow: var(--stats-shadow); min-height: 450px; display: flex; flex-direction: column; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
   .chart-wrapper:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25); }
   .chart-title { margin-bottom: 20px; text-align: center; color: var(--stats-text-heading); font-size: 1.35em; font-weight: 600; border-bottom: 1px solid var(--stats-grid-lines); padding-bottom: 15px; }
-  .chart-canvas { flex-grow: 1; max-height: 300px; min-height: 200px; /* Ensure minimum canvas height */ width: 100%; /* Ensure canvas tries to fill width */ }
+  .chart-canvas { flex-grow: 1; max-height: 300px; min-height: 200px; width: 100%; }
   .chart-summary { text-align: center; margin-top: 15px; padding-top: 10px; font-size: 0.9em; color: var(--stats-text-muted); border-top: 1px solid var(--stats-grid-lines); }
-  
-  /* Sijil Selector Specific Styles */
-  .sijil-focus-wrapper { /* Specific wrapper for the selector + chart */
-      /* No extra styles needed unless you want to differentiate it */
-  }
+
   .sijil-selector {
-      margin-bottom: 25px; /* Space below selector */
+      margin-bottom: 25px;
       display: flex;
       align-items: center;
-      justify-content: center; /* Center selector */
+      justify-content: center;
       gap: 10px;
-      flex-wrap: wrap; /* Allow label/select to wrap */
+      flex-wrap: wrap;
   }
   .sijil-selector label {
       font-size: 1em;
@@ -377,22 +325,22 @@
       outline: none;
       transition: all 0.2s ease;
       cursor: pointer;
-      min-width: 200px; /* Give dropdown some width */
-      flex-grow: 1; /* Allow it to grow if needed */
-      max-width: 300px; /* Prevent it from getting too wide */
+      min-width: 200px;
+      flex-grow: 1;
+      max-width: 300px;
   }
   .sijil-selector select:focus {
       border-color: var(--input-focus-border);
       box-shadow: 0 0 0 3px var(--input-focus-shadow);
-      background-color: var(--stats-card-bg); /* Darken on focus */
+      background-color: var(--stats-card-bg);
   }
-  
+
   .focused-chart-area {
-      flex-grow: 1; /* Takes remaining space in the wrapper */
+      flex-grow: 1;
       display: flex;
       justify-content: center;
-      align-items: center; /* Center content vertically */
-      min-height: 300px; /* Ensure area has height */
+      align-items: center;
+      min-height: 300px;
   }
   .prompt-message {
       color: var(--stats-text-muted);
@@ -400,7 +348,7 @@
       text-align: center;
       padding: 20px;
   }
-  
+
   .copyright { margin-top: 50px; font-size: 0.8em; color: rgba(255, 255, 255, 0.5); text-align: center; }
-  
+
   </style>

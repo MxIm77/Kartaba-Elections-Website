@@ -10,9 +10,9 @@
  *          On success, `data` will be the array of mandoob records.
  *          On failure, `error` will contain error details.
  */
-export async function fetchMandoobRecords() {
+export async function fetchMandoobRecords() { //whatev you put here for the rows /whatever
     // --- Backend URL Configuration ---
-    const API_BASE_URL = 'http://192.168.1.102:4040'; // Use your actual Base URL (NO TRAILING SLASH)
+    const API_BASE_URL = 'http://192.168.10.103:4040'; // Use your actual Base URL (NO TRAILING SLASH)
     const mandoobDataUrl = `${API_BASE_URL}/mandoob/getrows`; // Adjust endpoint path if needed
   
     try {
