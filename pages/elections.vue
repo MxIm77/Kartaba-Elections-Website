@@ -141,43 +141,42 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from '#app';
+import { useCookie } from '#app'; // Import useCookie for logout
 
 // 1. Import the JSON file directly
-// Ensure db.json is in your assets directory and has the correct structure.
 import dbData from '@/db.json';
+
+// Import the checkSession function (which now uses cookies)
+import { checkSession } from '~/home.js'; // Adjust path if needed
 
 // --- State ---
 const router = useRouter();
-const currentUser = ref(null);
+const currentUser = ref(null); // Still useful for display
 
-// Filters
-const selectedDistrict = ref(''); // Start empty or set default after loading
+// Filters, Dropdown Options, Table Data, Pagination State... (keep as is)
+// ... (rest of your state variables)
+const selectedDistrict = ref('');
 const selectedRegister = ref('');
 const selectedSex = ref('');
-
-// Dropdown Options & Loading States
 const districtOptions = ref([]);
-const districtsLoading = ref(true); // Set true initially
+const districtsLoading = ref(true);
 const registerOptions = ref([]);
 const registersLoading = ref(false);
 const sexOptions = ref([]);
-const sexesLoading = ref(true); // Set true initially
-
-// Table Data & State
-const electionRecords = ref([]); // This will hold the *paginated* results from JSON
-const allJsonRecords = ref([]); // Holds *all* records from JSON for filtering
-const recordsLoading = ref(true); // Set true initially
+const sexesLoading = ref(true);
+const electionRecords = ref([]);
+const allJsonRecords = ref([]);
+const recordsLoading = ref(true);
 const errorMessage = ref(null);
 const successMessage = ref(null);
 let messageTimeout = null;
-
-// Pagination
 const currentPage = ref(1);
 const totalPages = ref(1);
 const itemsPerPage = ref(50);
-const totalRecords = ref(0); // Total records *after* filtering
+const totalRecords = ref(0);
 
 // --- Utility Functions ---
+// showMessage function remains the same...
 function showMessage(type, message, duration = 4000) {
   if (messageTimeout) clearTimeout(messageTimeout);
   if (type === 'success') {
@@ -194,36 +193,24 @@ function showMessage(type, message, duration = 4000) {
 }
 
 // --- Data Processing (from JSON) ---
-
-// Load initial dropdown options and all records from JSON
+// loadInitialData, populateRegistersForSelectedDistrict, filterAndPaginateRecords functions remain the same...
+// ... (keep your existing data processing functions) ...
 function loadInitialData() {
   districtsLoading.value = true;
   sexesLoading.value = true;
   recordsLoading.value = true; // Also set records loading true initially
 
   try {
-    // Simulate async delay if needed
-    // await new Promise(resolve => setTimeout(resolve, 200));
-
-    // Districts
     districtOptions.value = dbData.districts || [];
     if (districtOptions.value.length > 0 && !selectedDistrict.value) {
-         // Set a default district if none is selected and options exist
          selectedDistrict.value = districtOptions.value[0].value;
     } else if (districtOptions.value.length === 0) {
         selectedDistrict.value = ''; // Clear if no districts
     }
 
-    // Sexes
     sexOptions.value = dbData.sexes || [];
-
-    // All Records (Store once)
     allJsonRecords.value = dbData.records || [];
-
-    // Populate registers based on the potentially set default district
     populateRegistersForSelectedDistrict();
-
-    // Apply initial filtering and pagination
     filterAndPaginateRecords();
 
   } catch (err) {
@@ -237,24 +224,18 @@ function loadInitialData() {
   } finally {
     districtsLoading.value = false;
     sexesLoading.value = false;
-    // recordsLoading will be set false in filterAndPaginateRecords
   }
 }
 
-// Populate register dropdown based on current selectedDistrict
 function populateRegistersForSelectedDistrict() {
     if (!selectedDistrict.value || !dbData.registers) {
         registerOptions.value = [];
-        // selectedRegister.value = ''; // Keep selected register if desired, or reset here
         return;
     }
     registersLoading.value = true;
     try {
-        // Access registers based on the selected district value
         const registersForDistrict = dbData.registers[selectedDistrict.value] || [];
-
-        // Sort registers
-        const sortedRegisters = [...registersForDistrict].sort((a, b) => { // Use spread to avoid modifying original if needed
+        const sortedRegisters = [...registersForDistrict].sort((a, b) => {
             const numA = parseInt(a, 10);
             const numB = parseInt(b, 10);
             return !isNaN(numA) && !isNaN(numB) ? numA - numB : String(a).localeCompare(String(b));
@@ -269,45 +250,36 @@ function populateRegistersForSelectedDistrict() {
     }
 }
 
-// Filter and Paginate the records from allJsonRecords
 function filterAndPaginateRecords() {
     recordsLoading.value = true;
     try {
-        let filtered = [...allJsonRecords.value]; // Start with a copy of all records
+        let filtered = [...allJsonRecords.value];
 
-        // Apply filters
         if (selectedDistrict.value) {
             filtered = filtered.filter(record => record.district === selectedDistrict.value);
         }
         if (selectedRegister.value) {
-            // Ensure type comparison is robust (e.g., compare as strings)
             filtered = filtered.filter(record => String(record.register) === String(selectedRegister.value));
         }
         if (selectedSex.value) {
             filtered = filtered.filter(record => record.sex === selectedSex.value);
         }
 
-        // Update total count *after* filtering
         totalRecords.value = filtered.length;
         totalPages.value = Math.ceil(totalRecords.value / itemsPerPage.value);
 
-        // Reset to page 1 if current page is invalid after filtering
         if (currentPage.value > totalPages.value) {
-            currentPage.value = totalPages.value > 0 ? 1 : 0; // Go to 1 if pages exist, 0 otherwise? Or 1 always?
+            currentPage.value = totalPages.value > 0 ? 1 : 0;
         }
-        // Handle case where currentPage might be 0 if totalPages is 0
         if (currentPage.value <= 0 && totalPages.value > 0) {
             currentPage.value = 1;
         }
 
-
-        // Apply pagination
         const startIndex = (currentPage.value - 1) * itemsPerPage.value;
         const endIndex = startIndex + itemsPerPage.value;
-        // Only slice if we have a valid page and records
         electionRecords.value = (currentPage.value > 0 && filtered.length > 0)
                               ? filtered.slice(startIndex, endIndex).map(r => ({ ...r, updating: false }))
-                              : []; // Empty array if no valid page or no records
+                              : [];
 
     } catch (err) {
         showMessage('error', 'Error filtering or paginating records.');
@@ -315,70 +287,78 @@ function filterAndPaginateRecords() {
         electionRecords.value = [];
         totalPages.value = 0;
         totalRecords.value = 0;
-        currentPage.value = 0; // Or 1?
+        currentPage.value = 0;
 
     } finally {
          recordsLoading.value = false;
     }
 }
 
-
-// Update a single record's elected status (in memory)
+// --- MODIFIED updateRecord Function ---
 async function updateRecord(record) {
   record.updating = true;
   errorMessage.value = null;
   successMessage.value = null;
+  let sessionCheckMessage = '';
 
+  // --- Step 1: Call checkSession (relies on cookie now) ---
   try {
-    // Find the record in the *original* allJsonRecords array to modify it
-    // This makes the change persistent for the current session (until refresh)
-    // across different filter/pagination views.
+    console.log('[updateRecord] Checking session via cookie before update...');
+    // No need to get token from localStorage, just call checkSession
+    const sessionResult = await checkSession(); // Call without arguments
+
+    if (sessionResult.success) {
+      console.log('[updateRecord] Session check successful (cookie auth):', sessionResult.data);
+      sessionCheckMessage = 'Session verified successfully. ';
+    } else {
+      console.error('[updateRecord] Session check failed (cookie auth):', sessionResult.error);
+      sessionCheckMessage = `Session check failed: ${sessionResult.error?.message || 'Unknown reason'}. `;
+      // Decide how to proceed. For testing, we'll continue.
+      // In production, you might stop:
+      // showMessage('error', `Action aborted. Session invalid: ${sessionResult.error?.message || 'Please log in again.'}`);
+      // record.updating = false;
+      // return;
+    }
+  } catch (sessionError) {
+      console.error('[updateRecord] Error during checkSession call:', sessionError);
+      sessionCheckMessage = 'Error occurred while checking session. ';
+  }
+
+  // --- Step 2: Proceed with the Original Update Logic (In Memory) ---
+  try {
     const recordInDb = allJsonRecords.value.find(r => r.id === record.id);
-
     if (recordInDb) {
-      // Update the property in the master list
       recordInDb.elected = record.elected;
-
-      // Also update the currently displayed record instance immediately
-      // (v-model already does this, but good practice if not using v-model)
       const recordInView = electionRecords.value.find(r => r.id === record.id);
       if (recordInView) {
           recordInView.elected = record.elected;
       }
-
-      // Simulate async delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      showMessage('success', `Record ${record.id} (${record.name}) updated successfully (in memory).`);
+      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
+      showMessage('success', `${sessionCheckMessage}Record ${record.id} (${record.name}) updated successfully (in memory).`);
     } else {
-      throw new Error(`Record with ID ${record.id} not found in JSON data.`);
+      throw new Error(`Record with ID ${record.id} not found.`);
     }
-
-  } catch (err) {
-     showMessage('error', err.message || `An unexpected error occurred while updating record ${record.id}.`);
-     console.error(err);
-     // Optional: Add logic to revert the change if needed
+  } catch (updateError) {
+     showMessage('error', `${sessionCheckMessage}${updateError.message || `An unexpected error occurred while updating record ${record.id}.`}`);
+     console.error('[updateRecord] Update error:', updateError);
   } finally {
     record.updating = false;
   }
 }
 
 // --- Event Handlers ---
-
-// Handle district change: update registers and then filter records
+// handleDistrictChange, applyFilters, goToPage functions remain the same...
 function handleDistrictChange() {
     selectedRegister.value = ''; // Reset register filter when district changes
     populateRegistersForSelectedDistrict();
     applyFilters(); // Apply filters immediately after district change
 }
 
-// Apply all current filters and reset to page 1
 function applyFilters() {
     currentPage.value = 1;
     filterAndPaginateRecords();
 }
 
-// Go to a specific page
 function goToPage(page) {
   if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
     currentPage.value = page;
@@ -386,25 +366,63 @@ function goToPage(page) {
   }
 }
 
-// Logout (still interacts with backend API)
+
+// --- MODIFIED Logout ---
 async function handleLogout() {
     try {
-        await useFetch('/api/auth/logout', { method: 'POST' });
-        localStorage.removeItem('currentUser');
+        // Clear the authentication cookie
+        const tokenCookie = useCookie('authToken');
+        tokenCookie.value = null; // Setting to null effectively deletes it
+
+        // Clear any other local user state
+        localStorage.removeItem('currentUser'); // Keep this if you store username separately
         currentUser.value = null;
-        router.push('/'); // Adjust if needed
+
+        console.log('Logged out, auth cookie cleared.');
+
+        // Optional: Call backend logout endpoint if it invalidates server-side session
+        // await useFetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+
+        router.push('/'); // Redirect to login or home
     } catch (error) {
         showMessage('error', 'Logout failed. Please try again.');
         console.error('Logout error:', error);
     }
 }
 
-// --- Lifecycle Hooks ---
-onMounted(() => {
-    currentUser.value = localStorage.getItem('currentUser');
-    // Load all initial data (districts, sexes, all records)
-    // This will also trigger the first filterAndPaginateRecords call
-    loadInitialData();
+// --- MODIFIED Lifecycle Hooks ---
+onMounted(async () => { // Make onMounted async if calling checkSession
+    currentUser.value = localStorage.getItem('currentUser'); // Still useful for display name
+
+    // --- Optional: Check session on page load ---
+    console.log('Checking session on component mount...');
+    recordsLoading.value = true; // Show loading indicator during check
+    try {
+        const sessionResult = await checkSession();
+        if (!sessionResult.success) {
+            console.warn('Initial session check failed on mount:', sessionResult.error);
+             showMessage('error', `Session invalid or expired: ${sessionResult.error?.message || 'Please log in.'}`, 6000);
+            // Redirect to login if session is invalid
+            await router.push('/'); // Use await if router.push returns a promise
+            return; // Stop further execution in onMounted
+        } else {
+            console.log('Initial session check successful on mount.');
+            // Session is valid, proceed to load data
+             loadInitialData(); // Call this only if session is valid
+        }
+    } catch(err) {
+         console.error('Error during initial session check:', err);
+         showMessage('error', 'Could not verify session. Please try logging in.', 6000);
+         await router.push('/');
+         return;
+    } finally {
+        // recordsLoading is handled within loadInitialData now
+        // recordsLoading.value = false; // Ensure loading stops if check fails early
+    }
+    // --- End optional session check ---
+
+    // If not doing session check on mount, load data directly:
+    // loadInitialData();
 });
 
 </script>

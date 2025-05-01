@@ -1,61 +1,89 @@
-// services/authService.js
-// Removed: import { useRuntimeConfig } from '#app';
-
 /**
- * Handles user login by sending credentials to the backend API.
+ * Handles user login, sends credentials, reads the token from the response HEADER,
+ * and stores it in localStorage.
  *
- * @param {string} username - The username (userId in your component).
+ * @param {string} username - The username.
  * @param {string} password - The user's password.
- * @returns {Promise<{success: boolean, data?: any, headers?: Headers, error?: any}>}
+ * @returns {Promise<{success: boolean, data?: any, error?: any}>}
  */
 export async function login(username, password) {
-  // Removed: const runtimeConfig = useRuntimeConfig();
-  // Removed: const apiBase = runtimeConfig.public.apiBase;
-
-  // Define the backend URL directly here as a constant
-  const backendUrl = 'http://192.168.3.98:4040'; // Or your specific backend IP and port
+  const backendUrl = 'http://192.168.1.103:4040'; // Using Beeceptor endpoint
+  const loginUrl = `${backendUrl}/login`;
 
   try {
-    // Use the hardcoded backendUrl to construct the full URL
-    const { data, error, headers } = await useFetch(`${backendUrl}/login`, {
+    const response = await fetch(loginUrl, {
       method: 'POST',
-      body: { username, password },
-      // ignoreResponseError: true allows us to handle non-2xx statuses manually
-      ignoreResponseError: true,
-      watch: false
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, password }),
     });
 
-    // If error.value is false, it means we received a 2xx HTTP status
-    // We also check data.value to ensure there was a response body (expected for success)
-    if (!error.value && data.value) {
-        console.log('Login API successful (HTTP Status OK):', data.value);
-        console.log('Response Headers:', headers.value);
-        // Return success with data and headers
+    // Try parsing JSON body anyway, maybe it contains user info like username
+    let responseData = {};
+    try {
+        // Use clone() in case you need to read the body again later, though unlikely here.
+        // It's safer if there might be other processing.
+        responseData = await response.clone().json();
+    } catch (jsonError) {
+        console.warn('Login response body was not valid JSON or empty.');
+        // It's okay if the body isn't JSON if the token is in the header
+    }
+
+
+    if (response.ok) { // Check if HTTP status is 2xx
+      console.log('Login API successful (HTTP Status OK). Response Body:', responseData);
+
+      // --- Read token from HEADER ---
+      // Adjust 'Authorization' if your backend uses a different header name (e.g., 'X-Auth-Token')
+      const authHeader = response.headers.get('Authorization');
+      console.log('Received Authorization header:', authHeader); // Log the raw header value
+
+      let extractedToken = null;
+      if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+         // Extract the token part after "Bearer "
+         extractedToken = authHeader.substring(7); // "Bearer ".length is 7
+      } else if (authHeader) {
+         // Maybe the backend sends the token directly without "Bearer "? Adapt if necessary.
+         // Or maybe it's in a different header like 'X-Auth-Token'
+         // Example for a different header: extractedToken = response.headers.get('X-Auth-Token');
+         console.warn(`Authorization header found but doesn't start with 'Bearer ': ${authHeader}`);
+         // If the token is directly in the header without 'Bearer ', uncomment below:
+         // extractedToken = authHeader;
+      }
+
+      // --- Store token if found ---
+      if (extractedToken) {
+        localStorage.setItem('authToken', extractedToken);
+        console.log('Auth token extracted from header and stored in localStorage:', extractedToken);
+
         return {
           success: true,
-          data: data.value,
-          headers: headers.value
+          // Include username from body if available, otherwise fallback
+          data: { username: responseData?.username || username },
         };
-    } else {
-        // If error.value is true, it means a non-2xx HTTP status was received,
-        // or a network error occurred (handled by the first part of the condition)
-        console.error('Login API failed (Non-OK HTTP Status or Network Error):', error.value);
-        // error.value will contain details about the HTTP error if it was non-2xx
+      } else {
+        // Login was OK, but the expected header/token was missing or invalid
+        console.error('Login successful, but token was missing or invalid in response headers.');
         return {
           success: false,
-          // Use error.value.data?.message for server error message if available,
-          // otherwise use a generic message based on error.value structure,
-          // or a final fallback message.
-          error: error.value?.data?.message // Message from server for non-2xx
-                 || error.value?.message // Generic fetch error message
-                 || data.value?.message // Message from server if data exists but error structure is unexpected
-                 || 'Login failed with non-OK status or network error.' // Final fallback
+          error: { message: 'Login succeeded but the authentication token was missing or invalid in the response headers.' }
         };
+      }
+      // --- End token processing ---
+
+    } else {
+      // Handle failed login (Non-2xx status)
+      console.error(`Login API failed (HTTP Status ${response.status}):`, responseData);
+      return {
+        success: false,
+        error: { message: responseData?.message || `Login failed with status: ${response.status}` }
+      };
     }
 
   } catch (err) {
+    // Handle network or unexpected errors
     console.error('Unexpected error in login service try-catch:', err);
-    // Catch any other unexpected errors during the fetch setup or processing
     return {
       success: false,
       error: { message: 'An unexpected client-side error occurred during login.' }

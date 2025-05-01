@@ -67,72 +67,92 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-// Import the login function from the new service file
-import { login } from '~/login'; // Adjust the path if necessary
+import { useRouter } from '#app';
+import { useCookie } from '#app'; // Import useCookie if needed for checks
 
-// --- State ---
-const userId = ref(''); // Assuming userId is used as the username
-const password = ref('');
-const loading = ref(false);
-const error = ref(null);
+// Import the login service function
+import { login } from '~/login.js'; // Make sure this path is correct
+
+// Import checkSession IF you want to redirect if already logged in
+import { checkSession } from '~/home.js'; // Path relative to root as requested
+
 const router = useRouter();
-const showIntro = ref(true);
-let errorTimeout = null;
 
-// --- Hooks ---
-onMounted(() => {
-  router.isReady().then(() => {
-    console.log('Login component mounted and router ready.');
+// --- State specifically for the Login Page ---
+const userId = ref(''); // Corresponds to v-model="userId" in template (used as username)
+const password = ref(''); // Corresponds to v-model="password"
+const loading = ref(false); // For the button's loading state
+const error = ref(null); // To display login errors
+const showIntro = ref(true); // Or false, depending on how you manage the intro video/animation
+
+// --- Optional: Logic to hide intro after a delay or video end ---
+onMounted(async () => {
+    // Example: Hide intro after 3 seconds
     setTimeout(() => {
-      console.log('Setting showIntro to false.');
-      showIntro.value = false;
-    }, 2000); // Adjust time as needed
-  });
+        showIntro.value = false;
+    }, 3000); // Adjust timing as needed
+
+    // --- Optional: Check if already logged in ---
+    // This prevents showing the login page if a valid session cookie exists
+    console.log('Checking existing session on login page mount...');
+    try {
+        const sessionResult = await checkSession();
+        if (sessionResult.success) {
+            console.log('Valid session found, redirecting to elections...');
+            // Optionally store username if returned by checkSession
+            // localStorage.setItem('currentUser', sessionResult.data?.username || 'user');
+            await router.push('/elections'); // Redirect to the main app page
+        } else {
+            console.log('No active session found or session invalid.');
+             // Clear any potential leftover cookie if check fails but cookie exists
+             const tokenCookie = useCookie('authToken');
+             if (tokenCookie.value) {
+                 console.log('Clearing potentially invalid auth token cookie.');
+                 tokenCookie.value = null;
+             }
+        }
+    } catch (err) {
+        console.error('Error checking session on login page mount:', err);
+        // Proceed to show login form
+    }
+     // --- End Optional Check ---
 });
 
-// --- Methods ---
-function setErrorMessage(message, duration = 4000) {
-    if (errorTimeout) clearTimeout(errorTimeout);
-    error.value = message;
-    errorTimeout = setTimeout(() => {
-        error.value = null;
-    }, duration);
-}
 
-const handleLogin = async () => {
-  console.log('handleLogin function called.');
-  if (!userId.value || !password.value) {
-    setErrorMessage('Please enter both Name and Passcode.');
-    return;
-  }
+// --- Login Handler ---
+async function handleLogin() {
   loading.value = true;
-  error.value = null;
-  if (errorTimeout) clearTimeout(errorTimeout);
+  error.value = null; // Clear previous errors
 
   try {
-    // Call the login function from the service
+    // Call the login service function from authService.js
+    // Pass the userId ref's value as the 'username'
     const result = await login(userId.value, password.value);
 
     if (result.success) {
-        console.log('Login successful:', result.data?.message || 'Success');
-        // You can access headers like result.headers.get('Authorization') if needed
-        localStorage.setItem('currentUser', userId.value); // Store username/userId
-        console.log('Navigating to /elections...');
-        router.push('/elections');
-    } else {
-        console.error('Login failed:', result.error);
-        // Use the error message returned by the service
-        setErrorMessage(result.error.message || 'Login failed. Please check your credentials.');
-    }
+      console.log('Login successful:', result.data);
 
+      // Store username for display purposes (optional, get it from result.data if available)
+      localStorage.setItem('currentUser', result.data?.username || userId.value); // Use response data or input
+
+      // Redirect to the elections page upon successful login
+      // The cookie should have been set by the login service itself
+      await router.push('/elections'); // Or your desired protected route
+
+    } else {
+      // Login failed (API returned error, non-2xx status, etc.)
+      console.error('Login failed:', result.error);
+      // Use the error message from the service response, or a default
+      error.value = result.error?.message || 'Login failed. Please check your credentials.';
+    }
   } catch (err) {
-      console.error('Unexpected error during handleLogin:', err);
-      setErrorMessage('An unexpected error occurred. Please try again.');
+    // Catch unexpected errors during the login process itself
+    console.error('Unexpected error during handleLogin:', err);
+    error.value = 'An unexpected error occurred. Please try again.';
   } finally {
-    loading.value = false;
+    loading.value = false; // Ensure loading indicator stops
   }
-};
+}
 </script>
 
 <style>
