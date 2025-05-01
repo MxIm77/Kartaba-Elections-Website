@@ -1,6 +1,4 @@
-<template>
-  <!-- ... your existing template ... -->
-   <div>
+<template>   <div>
     <!-- Intro transition remains the same -->
     <transition name="fade-intro" @after-leave="contentVisible = true">
       <div v-if="showIntro" class="intro-video-overlay">
@@ -81,7 +79,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from '#app';
-// Removed: import { useCookie } from '#app'; // No longer using cookies here
 import { jwtDecode } from 'jwt-decode'; // Ensure installed: npm install jwt-decode
 
 // Import your service functions
