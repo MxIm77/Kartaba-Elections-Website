@@ -6,17 +6,24 @@
 
     <h1 style="margin-top: 60px;">قائمة المناديب</h1>
 
+    <!-- Use Warning Component for SUCCESS messages -->
     <transition name="fade">
-      <div v-if="successMessage" class="message success-message">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-        <span>{{ successMessage }}</span>
-      </div>
+      <Warning
+        v-if="successMessage"
+        title="تحديث الحالة" 
+        :message="successMessage"
+        style="margin: 15px auto; max-width: 600px;"
+      />
     </transition>
+
+    <!-- Use Warning Component for ERROR messages -->
     <transition name="fade">
-      <div v-if="errorMessage" class="message error-message">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-        <span>{{ errorMessage }}</span>
-      </div>
+      <Warning
+        v-if="errorMessage"
+        title="خطأ" 
+        :message="errorMessage"
+        style="margin: 15px auto; max-width: 600px;"
+      />
     </transition>
 
     <div class="table-container" dir="rtl" style="margin-top: 25px;">
@@ -92,24 +99,30 @@
   import { useRouter } from '#app';
   import { checkSession } from '~/home.js';
   import { fetchMandoobRecords, updateMandoobVote } from '~/mandoob.js';
+  import Warning from '~/components/voteupdate.vue'; // Adjust path if needed
 
   const router = useRouter();
   const currentUser = ref(null);
   const allMandoobRecords = ref([]);
   const displayedRecords = ref([]);
   const recordsLoading = ref(true);
-  const errorMessage = ref(null);
-  const successMessage = ref(null);
+  const errorMessage = ref(null); // Used by Warning component
+  const successMessage = ref(null); // Used by Warning component
   let messageTimeout = null;
   const currentPage = ref(1);
   const itemsPerPage = ref(25);
   const updatingVoteId = ref(null);
   const tempSelections = ref({});
 
+  // --- WATCHERS AND COMPUTED PROPERTIES (No changes needed) ---
   watch([allMandoobRecords, currentPage], () => {
       calculateDisplayedRecords();
   }, { deep: true });
 
+  const totalRecords = computed(() => allMandoobRecords.value.length);
+  const totalPages = computed(() => Math.ceil(totalRecords.value / itemsPerPage.value));
+
+  // --- HELPER FUNCTIONS (No changes needed) ---
   function calculateDisplayedRecords() {
       if (!allMandoobRecords.value || allMandoobRecords.value.length === 0) {
           displayedRecords.value = [];
@@ -123,18 +136,14 @@
               const originalVoted = record.voted === true || record.voted === 'true' || record.voted === 1;
               const tempSelection = tempSelections.value[record.id];
               const currentSelectionValue = tempSelection !== undefined ? tempSelection : (originalVoted ? 'yes' : 'no');
-              // Ensure ID exists for mapping, even if not displayed
               return {
                   ...record,
-                  id: record.id, // Explicitly include ID for internal use
+                  id: record.id,
                   voted: originalVoted,
                   selectedVoteStatus: currentSelectionValue
               };
           });
   }
-
-  const totalRecords = computed(() => allMandoobRecords.value.length);
-  const totalPages = computed(() => Math.ceil(totalRecords.value / itemsPerPage.value));
 
   function hasSelectionChanged(record) {
       const tempValue = tempSelections.value[record.id];
@@ -143,31 +152,31 @@
       return record.voted !== selectedBoolean;
   }
 
+  // This function now controls the text shown in the Warning component
   function showMessage(type, message, duration = 4000) {
     if (messageTimeout) clearTimeout(messageTimeout);
     errorMessage.value = null;
     successMessage.value = null;
-    if (type === 'success') successMessage.value = message;
-    else if (type === 'error') errorMessage.value = message;
+    if (type === 'success') successMessage.value = message; // Sets message for Warning (success case)
+    else if (type === 'error') errorMessage.value = message; // Sets message for Warning (error case)
     if (type) messageTimeout = setTimeout(() => { successMessage.value = null; errorMessage.value = null; }, duration);
   }
 
+  // --- DATA LOADING AND ACTIONS (No changes needed in logic) ---
   async function loadData() {
     recordsLoading.value = true;
     tempSelections.value = {};
-    showMessage(null, '');
+    showMessage(null, ''); // Clear messages
     try {
       const result = await fetchMandoobRecords();
       if (result.success && Array.isArray(result.data)) {
-        // Sort the data by ID before storing it
         const sortedData = result.data.sort((a, b) => {
-            // Ensure IDs are treated as numbers for correct sorting
             const idA = Number(a.id);
             const idB = Number(b.id);
-            if (isNaN(idA) && isNaN(idB)) return 0; // Keep order if both are NaN
-            if (isNaN(idA)) return 1;             // Put NaN IDs last
-            if (isNaN(idB)) return -1;            // Put NaN IDs last
-            return idA - idB;                     // Numeric sort
+            if (isNaN(idA) && isNaN(idB)) return 0;
+            if (isNaN(idA)) return 1;
+            if (isNaN(idB)) return -1;
+            return idA - idB;
         });
         allMandoobRecords.value = sortedData;
         currentPage.value = 1;
@@ -208,15 +217,17 @@
   function onDropdownChange(event, recordId) {
       const selectedValue = event.target.value;
       tempSelections.value[recordId] = selectedValue;
-       calculateDisplayedRecords();
+       calculateDisplayedRecords(); // Recalculate to update display state
   }
 
   async function confirmVoteUpdate(record) {
     const recordId = record.id;
     const selectedStatusString = tempSelections.value[recordId];
+
+    // If user selects 'no' after selecting 'yes', just revert visually
     if (selectedStatusString !== 'yes') {
         delete tempSelections.value[recordId];
-        calculateDisplayedRecords();
+        calculateDisplayedRecords(); // Update the displayed value back to original
         return;
     }
 
@@ -224,44 +235,51 @@
     const originalRecordIndex = allMandoobRecords.value.findIndex(r => r.id === recordId);
     if (originalRecordIndex === -1) {
          console.error(`Record with ID ${recordId} not found in allMandoobRecords.`);
-         return; // Should not happen if ID came from displayedRecords
+         showMessage('error', `Internal error: Record ${recordId} not found.`);
+         return;
     }
 
-
-    if (updatingVoteId.value === recordId) return;
+    if (updatingVoteId.value === recordId) return; // Prevent double clicks
 
     updatingVoteId.value = recordId;
-    showMessage(null, '');
+    showMessage(null, ''); // Clear previous messages
 
     try {
-      const result = await updateMandoobVote(recordId);
+      const result = await updateMandoobVote(recordId); // API call
 
       if (result.success) {
-        showMessage('success', result.message || `Record ${recordId} updated.`);
-        // Create a new object for reactivity
-        const updatedRecord = { ...allMandoobRecords.value[originalRecordIndex], voted: true };
-        // Update the specific record in the main array
-        allMandoobRecords.value[originalRecordIndex] = updatedRecord;
-        // Or force reactivity if splice isn't working:
-        // allMandoobRecords.value = [...allMandoobRecords.value];
+        // Show success message using the Warning component style
+        showMessage('success', result.message || `تم تحديث حالة التصويت للسجل رقم ${recordId} بنجاح.`);
 
+        // Update the local data state
+        const updatedRecord = { ...allMandoobRecords.value[originalRecordIndex], voted: true };
+        allMandoobRecords.value[originalRecordIndex] = updatedRecord;
+
+        // Clear temporary selection for this record
         delete tempSelections.value[recordId];
-        // Recalculate display based on the updated main array
+
+        // Recalculate displayed records based on updated main array
         calculateDisplayedRecords();
       } else {
-        showMessage('error', result.error?.message || `Failed to update vote for ${recordId}.`);
+        // Show error message using the Warning component style
+        showMessage('error', result.error?.message || `فشل تحديث حالة التصويت للسجل رقم ${recordId}.`);
+        // Optionally revert visual selection if API fails?
+        // delete tempSelections.value[recordId];
+        // calculateDisplayedRecords();
       }
     } catch (err) {
       console.error("Error during vote update API call:", err);
-      showMessage('error', `Error updating vote: ${err.message}`);
+      // Show error message using the Warning component style
+      showMessage('error', `حدث خطأ أثناء تحديث حالة التصويت: ${err.message}`);
     } finally {
+      // Ensure spinner stops even if errors occurred
       if (updatingVoteId.value === recordId) {
           updatingVoteId.value = null;
       }
     }
   }
 
-
+  // --- LIFECYCLE HOOK (No changes needed) ---
   onMounted(async () => {
     currentUser.value = localStorage.getItem('currentUser');
     recordsLoading.value = true;
@@ -277,12 +295,14 @@
       console.error('Init error:', err);
       showMessage('error', 'Init failed. Redirecting.', 6000);
       await router.push('/');
-      recordsLoading.value = false;
+    } finally {
+        recordsLoading.value = false; // Ensure loading stops on error too
     }
   });
 </script>
 
 <style>
+/* Your existing global styles */
 :root {
   --primary-bg-color: #1a233a;
   --card-bg-color: #2a3b52;
@@ -314,14 +334,21 @@ html, body, #__nuxt {
 </style>
 
 <style scoped>
+/* Your existing scoped styles */
 .wrapper.mandoob-page { max-width: 1600px; margin: 0 auto; padding: 40px 20px 60px 20px; box-sizing: border-box; position: relative; }
 h1 { color: var(--text-color-lighter); margin-bottom: 25px; text-align: center; margin-top: 20px; }
 .logout-btn { position: absolute; top: 41px; left: 20px; padding: 8px 15px; background-color: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background-color 0.2s ease; z-index: 100; }
 .logout-btn:hover { background-color: var(--accent-hover); }
+
+/* --- OLD MESSAGE STYLES (can be removed if not used elsewhere) --- */
+/*
 .message { padding: 12px 15px; margin: 15px 0; border-radius: 6px; display: flex; align-items: center; gap: 10px; font-size: 14px; border-left-width: 4px; border-left-style: solid; }
 .message svg { flex-shrink: 0; }
 .success-message { background-color: var(--success-bg); color: var(--success-color); border-left-color: var(--success-color); }
 .error-message { background-color: var(--error-bg); color: var(--error-color); border-left-color: var(--error-color); }
+*/
+/* --- END OLD MESSAGE STYLES --- */
+
 .table-container { max-height: 70vh; overflow-y: auto; border: 1px solid var(--table-border-color); border-radius: 8px; background-color: var(--primary-bg-color); }
 table { width: 100%; border-collapse: collapse; table-layout: auto; }
 th, td { border: 1px solid var(--table-border-color); padding: 8px 10px; font-size: 14px; vertical-align: middle; text-align: right; white-space: nowrap; }
@@ -364,7 +391,7 @@ td.action-cell { text-align: center; vertical-align: middle; padding: 5px; width
 .confirm-update-btn:disabled { background-color: var(--disabled-bg-color); color: var(--disabled-text-color); cursor: not-allowed; opacity: 0.7; }
 
 .action-cell > .loading-spinner.small { margin: 0 auto; display: block; padding: 11px 0; }
-.action-cell > span + .select-confirm-wrapper { display: none; }
+.action-cell > span + .select-confirm-wrapper { display: none; } /* Check if this rule is needed */
 
 .pagination { text-align: center; margin-top: 25px; display: flex; justify-content: center; align-items: center; gap: 10px; }
 .pagination span { padding: 8px 12px; color: var(--text-color-muted); font-size: 14px; }
@@ -376,6 +403,7 @@ td.action-cell { text-align: center; vertical-align: middle; padding: 5px; width
 .loading-spinner.small { width: 16px; height: 16px; border-width: 2px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Ensure fade transition works for the Warning component */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
