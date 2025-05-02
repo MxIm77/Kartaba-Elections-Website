@@ -122,7 +122,7 @@ async function routeUserBasedOnRole(role) {
             case 'moderator': await router.push('/elections'); break;
             default:
                 console.warn(`Unrecognized role "${role}", routing to default.`);
-                await router.push('/privatetransport');
+                await router.push('/transport');
                 break;
         }
     } catch (routingError) {

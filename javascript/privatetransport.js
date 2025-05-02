@@ -1,6 +1,6 @@
 // ~/privatetransport.js
 
-const API_BASE_URL = 'http://192.168.10.179:4040';
+const API_BASE_URL = 'http://192.168.10.103:4040';
 
 const ENDPOINTS = {
     RECORDS: '/logistics/private/getrows',
