@@ -1,6 +1,6 @@
 // ~/mandoob.js
 
-const API_BASE_URL = 'http://192.168.10.103:4040';
+const API_BASE_URL = 'http://192.168.10.179:4040';
 const MANDOOB_LIST_ENDPOINT = '/mandoob/getrows';
 const MANDOOB_UPDATE_ENDPOINT = '/mandoob/updatevote'; // Base path for update
 

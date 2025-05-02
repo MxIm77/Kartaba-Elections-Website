@@ -109,8 +109,8 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from '#app';
-import { checkSession } from '~/home.js';
-import { fetchElectionData } from '~/electionservice.js';
+import { checkSession } from '~/javascript/home.js';
+import { fetchElectionData } from '~/javascript/electionservice.js';
 
 const router = useRouter();
 const currentUser = ref(null);
