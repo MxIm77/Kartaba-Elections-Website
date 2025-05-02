@@ -83,7 +83,7 @@
                <td>{{ record.mother }}</td>
                <td>{{ record.dob }}</td>
                <td>{{ record.sex }}</td>
-               <td>{{ record.religion }}</td>
+               <td>{{ record.opinion }}</td>
                <td>{{ record.district }}</td>
                <td>{{ record.voted ? 'نعم' : 'لا' }}</td>
                <td>{{ record.private_car }}</td>
