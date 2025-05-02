@@ -1,16 +1,10 @@
 <template>
   <div class="wrapper elections-page mandoob-page">
     <button @click="handleLogout" class="logout-btn">
-      Logout ({{ currentUser || '...' }})
+      تسجيل الخروج ({{ currentUser || '...' }})
     </button>
 
-    <nav class="main-nav">
-      <NuxtLink to="/elections">Election Management</NuxtLink>
-      <NuxtLink to="/transport">Transport Management</NuxtLink>
-      <NuxtLink to="/mandoob">Mandoob List</NuxtLink>
-    </nav>
-
-    <h1 style="margin-top: 60px;">Mandoob List</h1>
+    <h1 style="margin-top: 60px;">قائمة المناديب</h1>
 
     <transition name="fade">
       <div v-if="successMessage" class="message success-message">
@@ -25,33 +19,29 @@
       </div>
     </transition>
 
-    <div class="table-container" style="margin-top: 25px;">
+    <div class="table-container" dir="rtl" style="margin-top: 25px;">
       <table>
         <thead>
           <tr>
-            <th>ID</th>
             <th>الاسم</th>
             <th>العائلة</th>
             <th>اسم الأب</th>
             <th>اسم الأم</th>
             <th>تاريخ الولادة</th>
             <th>السجل</th>
-            <th class="status-update-header">Update Vote Status</th>
+            <th class="status-update-header">تحديث حالة التصويت</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="recordsLoading">
-            <td colspan="8" style="text-align: center;">
-              <span class="loading-spinner"></span> Loading data...
+            <td colspan="7" style="text-align: center;">
+              <span class="loading-spinner"></span> جاري تحميل البيانات...
             </td>
           </tr>
-          <!-- Use displayedRecords directly -->
           <tr v-else-if="!recordsLoading && displayedRecords.length === 0">
-             <td colspan="8" style="text-align: center;">No records found.</td>
+             <td colspan="7" style="text-align: center;">لم يتم العثور على سجلات.</td>
           </tr>
-          <!-- Iterate over displayedRecords -->
           <tr v-else v-for="record in displayedRecords" :key="record.id">
-            <td>{{ record.id }}</td>
             <td>{{ record.name }}</td>
             <td>{{ record.family }}</td>
             <td>{{ record.father }}</td>
@@ -69,7 +59,7 @@
                   :disabled="record.voted === true"
                 >
                   <option value="yes">صوت</option>
-                  <option value="no">ما صوت</option>
+                  <option value="no">لم يصوت</option>
                 </select>
 
                 <button
@@ -78,7 +68,7 @@
                   class="confirm-update-btn"
                   :disabled="updatingVoteId === record.id"
                 >
-                   <span>Confirm</span>
+                   <span>تأكيد</span>
                 </button>
               </div>
             </td>
@@ -88,9 +78,9 @@
     </div>
 
     <div class="pagination" v-if="totalPages > 1 && !recordsLoading">
-      <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">Previous</button>
-      <span>Page {{ currentPage }} of {{ totalPages }}</span>
-      <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages">Next</button>
+      <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">السابق</button>
+      <span>صفحة {{ currentPage }} من {{ totalPages }}</span>
+      <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages">التالي</button>
     </div>
 
     <p class="copyright">© {{ new Date().getFullYear() }} Kartaba 2040 All rights reserved.</p>
@@ -98,190 +88,198 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'; // Keep watch
-import { useRouter } from '#app';
-import { checkSession } from '~/home.js';
-import { fetchMandoobRecords, updateMandoobVote } from '~/mandoob.js';
+  import { ref, onMounted, computed, watch } from 'vue';
+  import { useRouter } from '#app';
+  import { checkSession } from '~/home.js';
+  import { fetchMandoobRecords, updateMandoobVote } from '~/mandoob.js';
 
-const router = useRouter();
-const currentUser = ref(null);
-const allMandoobRecords = ref([]); // Holds original full dataset
-const displayedRecords = ref([]); // Holds records for the CURRENT page + temp state
-const recordsLoading = ref(true);
-const errorMessage = ref(null);
-const successMessage = ref(null);
-let messageTimeout = null;
-const currentPage = ref(1);
-const itemsPerPage = ref(25);
-const updatingVoteId = ref(null);
-const tempSelections = ref({}); // Stores { recordId: 'yes' | 'no' } for changes
+  const router = useRouter();
+  const currentUser = ref(null);
+  const allMandoobRecords = ref([]);
+  const displayedRecords = ref([]);
+  const recordsLoading = ref(true);
+  const errorMessage = ref(null);
+  const successMessage = ref(null);
+  let messageTimeout = null;
+  const currentPage = ref(1);
+  const itemsPerPage = ref(25);
+  const updatingVoteId = ref(null);
+  const tempSelections = ref({});
 
-// Watch for changes in the source data or current page to update the display list
-watch([allMandoobRecords, currentPage], () => {
-    calculateDisplayedRecords();
-}, { deep: true }); // Use deep watch if needed, though shouldn't be necessary here
+  watch([allMandoobRecords, currentPage], () => {
+      calculateDisplayedRecords();
+  }, { deep: true });
 
-// Function to calculate the records for the current page display
-function calculateDisplayedRecords() {
-    if (!allMandoobRecords.value || allMandoobRecords.value.length === 0) {
+  function calculateDisplayedRecords() {
+      if (!allMandoobRecords.value || allMandoobRecords.value.length === 0) {
+          displayedRecords.value = [];
+          return;
+      }
+      const startIndex = (currentPage.value - 1) * itemsPerPage.value;
+      const endIndex = startIndex + itemsPerPage.value;
+      displayedRecords.value = allMandoobRecords.value
+          .slice(startIndex, endIndex)
+          .map(record => {
+              const originalVoted = record.voted === true || record.voted === 'true' || record.voted === 1;
+              const tempSelection = tempSelections.value[record.id];
+              const currentSelectionValue = tempSelection !== undefined ? tempSelection : (originalVoted ? 'yes' : 'no');
+              // Ensure ID exists for mapping, even if not displayed
+              return {
+                  ...record,
+                  id: record.id, // Explicitly include ID for internal use
+                  voted: originalVoted,
+                  selectedVoteStatus: currentSelectionValue
+              };
+          });
+  }
+
+  const totalRecords = computed(() => allMandoobRecords.value.length);
+  const totalPages = computed(() => Math.ceil(totalRecords.value / itemsPerPage.value));
+
+  function hasSelectionChanged(record) {
+      const tempValue = tempSelections.value[record.id];
+      if (tempValue === undefined) return false;
+      const selectedBoolean = tempValue === 'yes';
+      return record.voted !== selectedBoolean;
+  }
+
+  function showMessage(type, message, duration = 4000) {
+    if (messageTimeout) clearTimeout(messageTimeout);
+    errorMessage.value = null;
+    successMessage.value = null;
+    if (type === 'success') successMessage.value = message;
+    else if (type === 'error') errorMessage.value = message;
+    if (type) messageTimeout = setTimeout(() => { successMessage.value = null; errorMessage.value = null; }, duration);
+  }
+
+  async function loadData() {
+    recordsLoading.value = true;
+    tempSelections.value = {};
+    showMessage(null, '');
+    try {
+      const result = await fetchMandoobRecords();
+      if (result.success && Array.isArray(result.data)) {
+        // Sort the data by ID before storing it
+        const sortedData = result.data.sort((a, b) => {
+            // Ensure IDs are treated as numbers for correct sorting
+            const idA = Number(a.id);
+            const idB = Number(b.id);
+            if (isNaN(idA) && isNaN(idB)) return 0; // Keep order if both are NaN
+            if (isNaN(idA)) return 1;             // Put NaN IDs last
+            if (isNaN(idB)) return -1;            // Put NaN IDs last
+            return idA - idB;                     // Numeric sort
+        });
+        allMandoobRecords.value = sortedData;
+        currentPage.value = 1;
+      } else {
+        showMessage('error', result.error?.message || 'Failed to load records.');
+        allMandoobRecords.value = [];
         displayedRecords.value = [];
+      }
+    } catch (err) {
+      showMessage('error', `Error loading data: ${err.message}`);
+      allMandoobRecords.value = [];
+      displayedRecords.value = [];
+    } finally {
+      recordsLoading.value = false;
+    }
+  }
+
+  function goToPage(page) {
+    if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
+      currentPage.value = page;
+      tempSelections.value = {};
+      window.scrollTo(0, 0);
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('authToken');
+      currentUser.value = null;
+      await router.push('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      showMessage('error', 'Logout failed.');
+    }
+  }
+
+  function onDropdownChange(event, recordId) {
+      const selectedValue = event.target.value;
+      tempSelections.value[recordId] = selectedValue;
+       calculateDisplayedRecords();
+  }
+
+  async function confirmVoteUpdate(record) {
+    const recordId = record.id;
+    const selectedStatusString = tempSelections.value[recordId];
+    if (selectedStatusString !== 'yes') {
+        delete tempSelections.value[recordId];
+        calculateDisplayedRecords();
         return;
     }
-    const startIndex = (currentPage.value - 1) * itemsPerPage.value;
-    const endIndex = startIndex + itemsPerPage.value;
-    displayedRecords.value = allMandoobRecords.value
-        .slice(startIndex, endIndex)
-        .map(record => {
-            const originalVoted = record.voted === true || record.voted === 'true' || record.voted === 1;
-            const tempSelection = tempSelections.value[record.id];
-            const currentSelectionValue = tempSelection !== undefined ? tempSelection : (originalVoted ? 'yes' : 'no');
-            return {
-                ...record,
-                voted: originalVoted,
-                selectedVoteStatus: currentSelectionValue
-            };
-        });
-     // console.log("Updated displayedRecords:", displayedRecords.value); // Debug log
-}
 
-// Computed properties based on the *full* dataset for pagination
-const totalRecords = computed(() => allMandoobRecords.value.length);
-const totalPages = computed(() => Math.ceil(totalRecords.value / itemsPerPage.value));
-
-// Helper to check if temporary selection differs from original voted status
-function hasSelectionChanged(record) {
-    const tempValue = tempSelections.value[record.id];
-    if (tempValue === undefined) return false;
-    const selectedBoolean = tempValue === 'yes';
-    return record.voted !== selectedBoolean;
-}
-
-// --- Standard Functions ---
-function showMessage(type, message, duration = 4000) {
-  if (messageTimeout) clearTimeout(messageTimeout);
-  errorMessage.value = null;
-  successMessage.value = null;
-  if (type === 'success') successMessage.value = message;
-  else if (type === 'error') errorMessage.value = message;
-  if (type) messageTimeout = setTimeout(() => { successMessage.value = null; errorMessage.value = null; }, duration);
-}
-
-async function loadData() {
-  recordsLoading.value = true;
-  tempSelections.value = {};
-  showMessage(null, '');
-  try {
-    const result = await fetchMandoobRecords();
-    if (result.success && Array.isArray(result.data)) {
-      allMandoobRecords.value = result.data; // This triggers the watcher
-      currentPage.value = 1; // Ensure page is reset, watcher updates display
-      // Explicitly call after setting data and page if watcher timing is off
-      // calculateDisplayedRecords();
-    } else {
-      showMessage('error', result.error?.message || 'Failed to load records.');
-      allMandoobRecords.value = [];
-      displayedRecords.value = []; // Also clear display list
+    // Find index in the *original* (sorted) array
+    const originalRecordIndex = allMandoobRecords.value.findIndex(r => r.id === recordId);
+    if (originalRecordIndex === -1) {
+         console.error(`Record with ID ${recordId} not found in allMandoobRecords.`);
+         return; // Should not happen if ID came from displayedRecords
     }
-  } catch (err) {
-    showMessage('error', `Error loading data: ${err.message}`);
-    allMandoobRecords.value = [];
-    displayedRecords.value = [];
-  } finally {
-    recordsLoading.value = false;
-  }
-}
 
-function goToPage(page) {
-  if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
-    currentPage.value = page; // This triggers the watcher
-    tempSelections.value = {};
-    window.scrollTo(0, 0);
-  }
-}
 
-async function handleLogout() {
-  try {
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('authToken');
-    currentUser.value = null;
-    await router.push('/');
-  } catch (error) {
-    console.error('Logout error:', error);
-    showMessage('error', 'Logout failed.');
-  }
-}
+    if (updatingVoteId.value === recordId) return;
 
-// Update temporary selection state when dropdown changes
-function onDropdownChange(event, recordId) {
-    const selectedValue = event.target.value;
-    tempSelections.value[recordId] = selectedValue;
-    // Force displayedRecords to update for immediate visual feedback if needed
-    // (though computed property on tempSelections might handle this implicitly)
-     calculateDisplayedRecords(); // Re-run calculation to update selectedVoteStatus visually
-}
+    updatingVoteId.value = recordId;
+    showMessage(null, '');
 
-// Send API request when confirm button is clicked
-async function confirmVoteUpdate(record) {
-  const recordId = record.id;
-  const selectedStatusString = tempSelections.value[recordId];
-  if (selectedStatusString !== 'yes') {
-      delete tempSelections.value[recordId];
-      console.warn(`Confirm clicked for ${recordId} but selection != 'yes'.`);
-      calculateDisplayedRecords(); // Recalculate to reset dropdown visual
-      return;
-  }
+    try {
+      const result = await updateMandoobVote(recordId);
 
-  const originalRecordIndex = allMandoobRecords.value.findIndex(r => r.id === recordId);
-  if (originalRecordIndex === -1) return;
+      if (result.success) {
+        showMessage('success', result.message || `Record ${recordId} updated.`);
+        // Create a new object for reactivity
+        const updatedRecord = { ...allMandoobRecords.value[originalRecordIndex], voted: true };
+        // Update the specific record in the main array
+        allMandoobRecords.value[originalRecordIndex] = updatedRecord;
+        // Or force reactivity if splice isn't working:
+        // allMandoobRecords.value = [...allMandoobRecords.value];
 
-  if (updatingVoteId.value === recordId) return;
-
-  updatingVoteId.value = recordId;
-  showMessage(null, '');
-
-  try {
-    const result = await updateMandoobVote(recordId); // Call with ID only
-
-    if (result.success) {
-      showMessage('success', result.message || `Record ${recordId} updated.`);
-      // Update the original data - set voted to TRUE
-      const updatedRecord = { ...allMandoobRecords.value[originalRecordIndex], voted: true };
-      allMandoobRecords.value.splice(originalRecordIndex, 1, updatedRecord);
-      // Clear the temporary state (watcher will update display)
-      delete tempSelections.value[recordId];
-    } else {
-      showMessage('error', result.error?.message || `Failed to update vote for ${recordId}.`);
-      // Keep temp state on failure
-    }
-  } catch (err) {
-    console.error("Error during vote update API call:", err);
-    showMessage('error', `Error updating vote: ${err.message}`);
-    // Keep temp state on error
-  } finally {
-    if (updatingVoteId.value === recordId) {
-        updatingVoteId.value = null;
+        delete tempSelections.value[recordId];
+        // Recalculate display based on the updated main array
+        calculateDisplayedRecords();
+      } else {
+        showMessage('error', result.error?.message || `Failed to update vote for ${recordId}.`);
+      }
+    } catch (err) {
+      console.error("Error during vote update API call:", err);
+      showMessage('error', `Error updating vote: ${err.message}`);
+    } finally {
+      if (updatingVoteId.value === recordId) {
+          updatingVoteId.value = null;
+      }
     }
   }
-}
 
-onMounted(async () => {
-  currentUser.value = localStorage.getItem('currentUser');
-  recordsLoading.value = true;
-  try {
-    const sessionResult = await checkSession();
-    if (!sessionResult.success) {
-      showMessage('error', `Session invalid: ${sessionResult.error?.message || 'Log in.'}`, 6000);
+
+  onMounted(async () => {
+    currentUser.value = localStorage.getItem('currentUser');
+    recordsLoading.value = true;
+    try {
+      const sessionResult = await checkSession();
+      if (!sessionResult.success) {
+        showMessage('error', `Session invalid: ${sessionResult.error?.message || 'Log in.'}`, 6000);
+        await router.push('/');
+        return;
+      }
+      await loadData(); // Load and sort data
+    } catch (err) {
+      console.error('Init error:', err);
+      showMessage('error', 'Init failed. Redirecting.', 6000);
       await router.push('/');
-      return;
+      recordsLoading.value = false;
     }
-    await loadData(); // Load data after session check
-  } catch (err) {
-    console.error('Init error:', err);
-    showMessage('error', 'Init failed. Redirecting.', 6000);
-    await router.push('/');
-    recordsLoading.value = false;
-  }
-});
+  });
 </script>
 
 <style>
@@ -291,15 +289,15 @@ onMounted(async () => {
   --text-color-light: #e0e0e0;
   --text-color-lighter: #f5f5f5;
   --text-color-muted: #9DA3B4;
-  --accent-color: #FF3B30; /* Confirm button */
+  --accent-color: #FF3B30;
   --accent-hover: #E02E24;
   --input-bg-color: rgba(42, 59, 82, 0.9);
   --input-border-color: rgba(255, 255, 255, 0.1);
-  --input-focus-border: rgba(52, 199, 89, 0.6); /* Green focus */
+  --input-focus-border: rgba(52, 199, 89, 0.6);
   --input-focus-shadow: rgba(52, 199, 89, 0.15);
   --error-color: #FF453A;
   --error-bg: rgba(255, 69, 58, 0.1);
-  --success-color: #34C759; /* Bright Green */
+  --success-color: #34C759;
   --success-bg: rgba(52, 199, 89, 0.1);
   --table-header-bg: #00000085;
   --table-even-row-bg: #1f2940;
@@ -317,123 +315,56 @@ html, body, #__nuxt {
 
 <style scoped>
 .wrapper.mandoob-page { max-width: 1600px; margin: 0 auto; padding: 40px 20px 60px 20px; box-sizing: border-box; position: relative; }
-h1 { color: var(--text-color-lighter); margin-bottom: 25px; text-align: center; }
-.logout-btn { position: absolute; top: 41px; right: 20px; padding: 8px 15px; background-color: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background-color 0.2s ease; z-index: 100; }
+h1 { color: var(--text-color-lighter); margin-bottom: 25px; text-align: center; margin-top: 20px; }
+.logout-btn { position: absolute; top: 41px; left: 20px; padding: 8px 15px; background-color: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background-color 0.2s ease; z-index: 100; }
 .logout-btn:hover { background-color: var(--accent-hover); }
-.main-nav { text-align: center; padding: 10px; background-color: var(--card-bg-color); border-radius: 8px; position: relative; z-index: 50; margin-bottom: 20px; }
-.main-nav a { color: var(--text-color-light); text-decoration: none; margin: 0 15px; padding: 8px 12px; border-radius: 4px; transition: background-color 0.2s ease, color 0.2s ease; font-weight: 500; }
-.main-nav a:hover { background-color: var(--accent-hover); color: white; }
-.main-nav a.router-link-exact-active { background-color: var(--accent-color); color: white; }
 .message { padding: 12px 15px; margin: 15px 0; border-radius: 6px; display: flex; align-items: center; gap: 10px; font-size: 14px; border-left-width: 4px; border-left-style: solid; }
 .message svg { flex-shrink: 0; }
 .success-message { background-color: var(--success-bg); color: var(--success-color); border-left-color: var(--success-color); }
 .error-message { background-color: var(--error-bg); color: var(--error-color); border-left-color: var(--error-color); }
-.table-container { max-height: 65vh; overflow-y: auto; border: 1px solid var(--table-border-color); border-radius: 8px; background-color: var(--primary-bg-color); }
-table { width: 100%; border-collapse: collapse; }
+.table-container { max-height: 70vh; overflow-y: auto; border: 1px solid var(--table-border-color); border-radius: 8px; background-color: var(--primary-bg-color); }
+table { width: 100%; border-collapse: collapse; table-layout: auto; }
 th, td { border: 1px solid var(--table-border-color); padding: 8px 10px; font-size: 14px; vertical-align: middle; text-align: right; white-space: nowrap; }
 th { background-color: var(--table-header-bg); color: var(--text-color-lighter); position: sticky; top: 0; z-index: 10; font-weight: 600; }
 th.status-update-header { text-align: center; }
 tbody tr:nth-child(even) { background-color: var(--table-even-row-bg); }
 tbody tr:hover { background-color: var(--card-bg-color); }
 
-td.action-cell {
-  text-align: center;
-  vertical-align: middle;
-  padding: 5px;
-  width: 220px;
-  height: 52px;
-  box-sizing: border-box;
-}
-
-.select-confirm-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-}
+td.action-cell { text-align: center; vertical-align: middle; padding: 5px; width: 230px; height: 52px; box-sizing: border-box; }
+.select-confirm-wrapper { display: flex; align-items: center; gap: 8px; justify-content: center; width: 100%; height: 100%; }
 
 .vote-select {
-  appearance: none; -webkit-appearance: none;
-  flex-basis: 130px;
-  flex-grow: 0;
-  flex-shrink: 0;
-  height: 40px;
-  padding: 0 35px 0 15px;
-  line-height: 38px;
-  font-size: 1rem;
-  font-weight: 600;
-  border-radius: 6px;
-  border: 1px solid var(--input-border-color);
-  background-color: var(--input-bg-color);
+  appearance: none; -webkit-appearance: none; flex-basis: 130px; flex-grow: 0; flex-shrink: 0; height: 40px;
+  padding: 0 15px 0 35px; /* Adjusted padding for RTL */ line-height: 38px; font-size: 1rem; font-weight: 600;
+  border-radius: 6px; border: 1px solid var(--input-border-color); background-color: var(--input-bg-color);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%239DA3B4' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 14px 14px;
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
-  outline: none;
-  text-align: center;
-  box-sizing: border-box;
+  background-repeat: no-repeat; background-position: left 12px center; background-size: 14px 14px;
+  cursor: pointer; transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+  outline: none; text-align: center; box-sizing: border-box;
 }
-.vote-select:focus {
-    border-color: var(--input-focus-border);
-    box-shadow: 0 0 0 3px var(--input-focus-shadow);
-}
+.vote-select:focus { border-color: var(--input-focus-border); box-shadow: 0 0 0 3px var(--input-focus-shadow); }
 .vote-select.is-voted { color: var(--success-color); }
 .vote-select.is-not-voted { color: var(--text-color-light); }
-.vote-select option {
-  background-color: var(--card-bg-color);
-  font-weight: normal;
-  padding: 5px 10px;
-}
+.vote-select option { background-color: var(--card-bg-color); font-weight: normal; padding: 5px 10px; }
 .vote-select option[value="yes"] { color: var(--success-color); }
 .vote-select option[value="no"] { color: var(--text-color-light); }
 
 .vote-select:disabled {
-  background-color: var(--input-bg-color);
-  color: var(--success-color);
-  border-color: rgba(52, 199, 89, 0.3);
-  cursor: not-allowed;
-  opacity: 0.75;
-   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%237e8a9e' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+  background-color: var(--input-bg-color); color: var(--success-color); border-color: rgba(52, 199, 89, 0.3);
+  cursor: not-allowed; opacity: 0.75;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%237e8a9e' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
 }
 
 .confirm-update-btn {
-  padding: 0 15px;
-  background-color: var(--accent-color);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: background-color 0.2s ease, opacity 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 40px;
-  line-height: 1;
-  flex-shrink: 0;
+  padding: 0 15px; background-color: var(--accent-color); color: white; border: none; border-radius: 6px;
+  cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: background-color 0.2s ease, opacity 0.2s ease;
+  display: inline-flex; align-items: center; justify-content: center; height: 40px; line-height: 1; flex-shrink: 0;
 }
 .confirm-update-btn:hover:not(:disabled) { background-color: var(--accent-hover); }
-.confirm-update-btn:disabled {
-  background-color: var(--disabled-bg-color);
-  color: var(--disabled-text-color);
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-.button-spinner { margin-right: 6px; } /* Spinner inside button */
+.confirm-update-btn:disabled { background-color: var(--disabled-bg-color); color: var(--disabled-text-color); cursor: not-allowed; opacity: 0.7; }
 
-.action-cell > .loading-spinner.small { /* Spinner replacing controls */
-    margin: 0 auto;
-    display: block;
-    padding: 11px 0;
-}
-.action-cell > span + .select-confirm-wrapper {
-    display: none;
-}
+.action-cell > .loading-spinner.small { margin: 0 auto; display: block; padding: 11px 0; }
+.action-cell > span + .select-confirm-wrapper { display: none; }
 
 .pagination { text-align: center; margin-top: 25px; display: flex; justify-content: center; align-items: center; gap: 10px; }
 .pagination span { padding: 8px 12px; color: var(--text-color-muted); font-size: 14px; }

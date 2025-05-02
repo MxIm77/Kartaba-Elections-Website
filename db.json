@@ -16,7 +16,7 @@
       {"value": "Female", "text": "أنثى"}
     ],
 "records": [
-  { "id": 1, "district": "DistrictA", "register": 1, "family": "الأحمد", "name": "علي", "father": "محمد", "mother": "فاطمة", "dob": "1990-01-01", "sex": "Male", "religion": "مسلم", "elected": "No", "orientation": "ma3na" },
+  { "id": 1, "district": "DistrictA", "register": 1, "family": "الأحمد", "name": "علي", "father": "محمد", "mother": "فاطمة", "dob": "1990-01-01", "sex": "Male", "religion": "مسلم", "elected": "Yes", "orientation": "ma3na" },
   { "id": 2, "district": "DistrictA", "register": 1, "family": "الخوري", "name": "مريم", "father": "جورج", "mother": "ليلى", "dob": "1992-05-15", "sex": "Female", "religion": "مسيحي", "elected": "Yes", "orientation": "dodna" },
   { "id": 3, "district": "DistrictA", "register": 3, "family": "حداد", "name": "يوسف", "father": "إبراهيم", "mother": "سارة", "dob": "1988-11-20", "sex": "Male", "religion": "مسيحي", "elected": "No", "orientation": "ma3na" },
   { "id": 4, "district": "DistrictA", "register": 5, "family": "زين", "name": "بتول", "father": "حسن", "mother": "زينب", "dob": "1995-07-07", "sex": "Female", "religion": "مسلم", "elected": "Yes", "orientation": "dodna" },
@@ -1096,7 +1096,7 @@
     "dob": "2019-08-09",
     "sex": "أنثى",
     "religion": "مسيحي",
-    "elected": "Yes",
+    "elected": "No",
     "orientation": "ضدنا"
     }
 ]
