@@ -52,7 +52,7 @@ export async function fetchInitialStats() {
 
         const totalVoted = data.total_voted;
         const totalRows = data.total_rows;
-        const totalProcessed = totalRows * RECORDS_PER_ROW;
+        const totalProcessed = totalRows;
         const totalNotVoted = totalProcessed - totalVoted;
 
         // Ensure notVoted isn't negative (data sanity check)
