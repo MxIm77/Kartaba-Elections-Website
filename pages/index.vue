@@ -121,6 +121,7 @@ async function routeUserBasedOnRole(role) {
             case 'mandoob': await router.push('/mandoob'); break;
             case 'taxi': await router.push('/transport/taxi'); break;
             case 'private': await router.push('/transport/private'); break;
+            case 'moderator':await router.push('/moderator'); break;
             default:
                 console.warn(`Unrecognized role "${role}", routing to default.`);
                 await router.push('/');

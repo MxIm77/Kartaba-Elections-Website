@@ -256,7 +256,7 @@
         const result = await fetchMandoobRecords();
         if (result.success && Array.isArray(result.data)) {
           // Sort by ID initially
-          const sortedData = result.data.sort((a, b) => Number(a.id) - Number(b.id));
+          const sortedData = result.data.sort((a, b) => Number(a.register) - Number(b.register));
           return { success: true, data: sortedData };
         } else {
           return { success: false, error: result.error?.message || 'Failed to load Mandoob records.' };
