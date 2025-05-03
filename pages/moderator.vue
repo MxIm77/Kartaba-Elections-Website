@@ -78,7 +78,6 @@
               <th>اسم الأم</th>
               <th>تاريخ الولادة</th>
               <th>السجل</th>
-              <th>التوجه</th>
               <th>انتخب</th>
             </tr>
           </thead>
@@ -102,7 +101,6 @@
               <td>{{ record.mother }}</td>
               <td>{{ record.dob }}</td>
               <td>{{ record.register }}</td>
-              <td>{{ formatOrientation(record.orientation) }}</td>
               <td>{{ record.voted ? 'نعم' : 'لا' }}</td>
             </tr>
           </tbody>
