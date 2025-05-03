@@ -1,5 +1,5 @@
 export async function login(username, password) {
-  const backendUrl = 'http://192.168.10.103:4040';
+  const backendUrl = 'https://kartaba-2040.com';
   const loginUrl = `${backendUrl}/login`;
 
   try {
