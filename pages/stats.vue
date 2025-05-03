@@ -1,7 +1,10 @@
 <template>
     <div class="wrapper stats-page">
       <h1 class="main-title">Voting Statistics Dashboard</h1>
-
+      <nav class="main-nav">
+        <NuxtLink to="/elections" exact-active-class="router-link-active">Election Management</NuxtLink>
+        <NuxtLink to="/stats" exact-active-class="router-link-active">Voting Statistics</NuxtLink>
+      </nav>
       <!-- Live Status Indicator -->
       <div class="live-status-indicator">
         <span :class="['status-dot', liveStatusClass]"></span>
@@ -390,6 +393,32 @@
 </style>
 
 <style scoped>
+
+    /* Main Navigation */
+.main-nav {
+  display: flex;
+  gap: 25px;
+  margin-bottom: 30px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--table-border-color, #dee2e6);
+  justify-content: center;
+}
+.main-nav a {
+  text-decoration: none;
+  color: var(--accent-color, #007bff);
+  padding: 8px 0;
+  font-weight: 500;
+  transition: color 0.2s ease, border-color 0.2s ease;
+  border-bottom: 3px solid transparent;
+}
+.main-nav a:hover {
+  color: var(--accent-hover, #0056b3);
+}
+.main-nav a.router-link-active {
+  font-weight: 700;
+  color: var(--accent-hover, #0056b3);
+  border-bottom-color: var(--accent-color, #007bff);
+}
   /* Scoped styles remain unchanged */
   .wrapper.stats-page { max-width: 1400px; margin: 0 auto; padding: 30px 20px 60px 20px; box-sizing: border-box; position: relative; color: var(--stats-text-light); }
   .main-title { color: var(--stats-text-heading); text-align: center; margin-bottom: 25px; margin-top: 10px; font-size: 2.2em; font-weight: 600; }

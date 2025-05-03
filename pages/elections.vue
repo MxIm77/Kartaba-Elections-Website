@@ -484,6 +484,14 @@ function handleWebSocketMessage(event) {
           audioPlayer.value.currentTime = 0;
           audioPlayer.value.play().catch(error => console.warn("Audio playback failed:", error));
         }
+      } else if (newStatus === false) {
+        if(voteNotificationTimeout) clearTimeout(voteNotificationTimeout);
+        disconnectNotificationMessage.value = wsMessage || `Vote recorded for ID: ${recordId}`;
+        voteNotificationTimeout = setTimeout(() => { voteNotificationMessage.value = null; }, 5000);
+        if (audioPlayer.value && audioPlayer.value.readyState >= 2) {
+          audioPlayer.value.currentTime = 0;
+          audioPlayer.value.play().catch(error => console.warn("Audio playback failed:", error));
+        }
       } else { // Revoked by someone else
          showMessage('info', `Vote for ID ${recordId} was revoked.`);
       }
@@ -640,7 +648,7 @@ onUnmounted(() => {
   position: relative;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   color: #333;
-  background-color: #f8f9fa;
+  /* background-color: #f8f9fa; */
 }
 
 h1 {

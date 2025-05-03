@@ -8,7 +8,7 @@
         </button>
     </div>
 
-    <h1 style="margin-top: 60px;">قائمة المناديب</h1>
+    <h1 style="margin-top: 60px;">قائمة المندوبين</h1>
 
     <!-- Success/Error Messages for Mandoob Actions -->
     <transition name="fade">
@@ -34,10 +34,10 @@
             <span class="stat-label">إجمالي الأصوات المسجلة حالياً:</span>
             <span class="stat-value">{{ overallVoted.toLocaleString() }}</span>
         </div>
-         <p v-if="statsErrorMessage" class="stats-error">
+         <!-- <p v-if="statsErrorMessage" class="stats-error">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
             فشل تحميل إحصائية الأصوات: {{ statsErrorMessage }}
-         </p>
+         </p> -->
     </div>
      <div v-else class="stats-display-area loading simple">
         <span class="loading-spinner small"></span> جاري تحميل إحصائية الأصوات...
@@ -149,7 +149,7 @@
   const filterText = ref(''); // State for the filter input
 
   // Overall Statistics State
-  const overallVoted = ref(0);
+  let overallVoted = ref(0);
   const statsLoading = ref(true);
   const statsErrorMessage = ref(null);
 
@@ -339,7 +339,7 @@
 
         // Remove the temporary selection state for this record as it's now permanent
         delete tempSelections.value[recordId];
-
+        overallVoted.value++
         // Recalculate displayed records - this ensures the updated 'voted' status
         // and removal of the confirm button are reflected immediately.
         // Note: This implicitly uses the updated allMandoobRecords via filteredMandoobRecords.

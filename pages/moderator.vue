@@ -34,10 +34,10 @@
           <div v-if="statsLoading" class="stats-loading-overlay">
               <span class="loading-spinner small"></span> جاري تحميل الإحصائيات...
           </div>
-          <div v-else-if="statsErrorMessage" class="stats-error-message">
+          <!-- <div v-else-if="statsErrorMessage" class="stats-error-message">
                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                <span>فشل تحميل الإحصائيات: {{ statsErrorMessage }}</span>
-          </div>
+          </div> -->
           <template v-else>
               <div class="stat-item">
                   <span class="stat-label">مع:</span>
@@ -140,7 +140,7 @@
     const countAgainst = ref(0);
     const countUnknown = ref(0);
 
-    const backendOverallVoted = ref(0);
+    let backendOverallVoted = ref(0);
     const statsLoading = ref(true);
     const statsErrorMessage = ref(null);
 
@@ -254,42 +254,50 @@
     }
 
     function handleWebSocketMessage(event) {
-        try {
-            const data = JSON.parse(event.data);
-            const updateType = data.update_type;
-            const recordId = data.voter_id;
-            const newStatus = data.status;
+    try {
+        const data = JSON.parse(event.data);
+        const updateType = data.update_type;
+        const recordId = data.voter_id_outside;
+        const newStatus = data.status;
 
-            if (updateType === 'vote' && typeof newStatus === 'boolean' && recordId !== undefined && recordId !== null) {
-                const recordIndex = allModeratorRecords.value.findIndex(r => r.id === recordId);
+        const isValidId = recordId !== undefined && recordId !== null;
 
-                if (recordIndex > -1) {
-                    const currentRecord = allModeratorRecords.value[recordIndex];
-                    const wasAlreadyVoted = currentRecord.voted === true || currentRecord.voted === 'true' || currentRecord.voted === 1;
-
-                    if (newStatus === true && !wasAlreadyVoted) {
-                         backendOverallVoted.value++;
-                    }
-
-                    const updatedRecord = { ...currentRecord, voted: newStatus };
-                    allModeratorRecords.value.splice(recordIndex, 1, updatedRecord);
-
-
-                    calculateDisplayedRecords();
-                } else {
-                     console.log(`[WS] Received vote update for record ID ${recordId}, but it's not in the current master list.`);
-                     if (newStatus === true) {
-                        backendOverallVoted.value++;
-                     }
+        if (updateType === 'vote' && typeof newStatus === 'boolean' && isValidId) {
+            const recordIndex = allModeratorRecords.value.findIndex(r => r.id === recordId);
+            console.log(newStatus)
+            if (recordIndex > -1) {
+                const currentRecord = allModeratorRecords.value[recordIndex];
+                const previouslyVoted = currentRecord.voted === true || currentRecord.voted === 'true' || currentRecord.voted === 1;
+                console.log(previouslyVoted)
+                if (newStatus === true && !previouslyVoted) {
+                    backendOverallVoted.value++;
+                } else if (newStatus === false && previouslyVoted) {
+                    backendOverallVoted.value--;
                 }
+
+                const updatedRecord = { ...currentRecord, voted: newStatus };
+                allModeratorRecords.value.splice(recordIndex, 1, updatedRecord);
+                calculateDisplayedRecords();
             } else {
-                console.warn("[WS] Received non-vote or invalid message:", data);
+                console.log(`[WS] Received vote update for record ID ${recordId}, but it's not in the current master list.`);
+                if (newStatus === true) {
+                    backendOverallVoted.value++;
+                } else if (newStatus === false) {
+                    backendOverallVoted.value--;
+                }
             }
-        } catch (err) {
-            console.error('[WS] Error processing WebSocket message:', err, event.data);
-            showMessage('error', 'خطأ في معالجة التحديث المباشر.');
+
+        } else {
+            console.warn("[WS] Received non-vote or invalid message:", data);
         }
+
+    } catch (err) {
+        console.error('[WS] Error processing WebSocket message:', err, event.data);
+        showMessage('error', 'خطأ في معالجة التحديث المباشر.');
     }
+}
+
+
 
     function startWebSocketConnection() {
         if (isLive.value || connecting.value) return;
