@@ -134,7 +134,7 @@
             <td>{{ record.mother ?? 'N/A' }}</td>
             <td>{{ record.dob ?? 'N/A' }}</td>
             <td>{{ record.sex ?? 'N/A' }}</td>
-            <td>{{ record.religion ?? 'N/A' }}</td>
+            <td>{{ record.religion ?? 'N/A' }}</td> 
             <!-- Display 'نعم' (Yes) or 'لا' (No) based on the boolean 'voted' status -->
             <td>{{ record.voted ? 'نعم' : 'لا' }}</td>
           </tr>

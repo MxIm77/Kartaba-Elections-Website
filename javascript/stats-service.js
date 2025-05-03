@@ -4,7 +4,7 @@
 const API_BASE_URL = 'http://192.168.10.103:4040'; // Use const for fixed values
 const STATS_ENDPOINT = '/team/getrows/statistics';
 const RECORDS_PER_ROW = 25; // Define the multiplier
-
+    
 /**
  * Fetches initial voting statistics from the backend API.
  * Requires an authentication token from localStorage.
