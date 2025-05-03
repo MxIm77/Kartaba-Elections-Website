@@ -39,7 +39,7 @@
     color: white;
     padding: 16px 20px;
     border-radius: 12px;
-    border-top: 6px solid #34C759; /* Green */
+    border-top: 6px solid #45AB4A; /* Green */
     font-family: 'Inter', sans-serif;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     max-width: 600px;
@@ -73,7 +73,7 @@
   }
   
   .voted-title {
-    color: #34C759; /* Green */
+    color: #45AB4A; /* Green */
     font-size: 1.1rem;
     font-weight: 700;
     margin: 0 0 4px 0;

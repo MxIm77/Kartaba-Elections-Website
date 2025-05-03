@@ -47,7 +47,7 @@
     padding: 16px 20px;
     border-radius: 12px;
     /* CHANGED: Blue top border */
-    border-top: 6px solid #007bff;
+    border-top: 6px solid #00CAEE;
     font-family: 'Inter', sans-serif;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     max-width: 600px;
@@ -86,7 +86,7 @@
   /* Renamed selector */
   .logistics-title {
     /* CHANGED: Blue title color */
-    color: #007bff;
+    color: #00CAEE;
     font-size: 1.1rem;
     font-weight: 700;
     margin: 0 0 4px 0;
