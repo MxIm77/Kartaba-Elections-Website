@@ -65,7 +65,7 @@
           </transition>
         </div>
 
-        <p class="copyright">© 2025 Meshwar. All rights reserved.</p>
+        <p class="copyright">© 2025 Kartaba 2040. All rights reserved.</p>
       </div>
     </transition>
   </div>

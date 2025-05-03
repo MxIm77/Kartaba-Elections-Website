@@ -1,5 +1,3 @@
-// ~/javascript/electionservice.js
-
 import { $fetch } from 'ofetch';
 
 const API_BASE_URL = 'http://192.168.10.103:4040';
@@ -38,22 +36,14 @@ export async function fetchRecordsPage(page = 1) {
       headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
     });
 
-    // --- >>> CORRECTED VALIDATION <<< ---
-    // Check if the response ITSELF is the array of records
     if (Array.isArray(responseData)) {
-      // If yes, return it directly
       return { success: true, records: responseData };
-    }
-    // Oherwise, check if it's an object containing a 'records' array (original check)
-    else if (responseData && typeof responseData === 'object' && Array.isArray(responseData.records)) {
+    } else if (responseData && typeof responseData === 'object' && Array.isArray(responseData.records)) {
        return { success: true, records: responseData.records };
-    }
-    // If neither case matches, the structure is wrong
-    else {
+    } else {
        console.error(`[electionService] Page ${page} response is not an array and not an object with a 'records' array:`, responseData);
        return { success: false, error: { message: `Invalid page ${page} response structure.` } };
     }
-    // --- >>> END CORRECTION <<< ---
 
   } catch (err) {
     const statusCode = err.response?.status;

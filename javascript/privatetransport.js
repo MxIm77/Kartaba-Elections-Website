@@ -1,17 +1,16 @@
-// ~/privatetransport.js
-
 const API_BASE_URL = 'http://192.168.10.103:4040';
 
 const ENDPOINTS = {
     RECORDS: '/logistics/private/getrows',
+    STATUSES: '/logistics/private/statuses', // Add these if they exist in your backend
+    TYPES: '/logistics/private/types'
 };
 
 async function makeApiRequest(endpoint, method = 'GET', options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
-
     const token = localStorage.getItem('authToken');
+
     if (!token) {
-        console.warn('[privatetransport] No authentication token found.');
         return { success: false, error: { message: 'Authentication token not found.', statusCode: 401 } };
     }
 
@@ -33,18 +32,8 @@ async function makeApiRequest(endpoint, method = 'GET', options = {}) {
         }
 
     } catch (err) {
-        console.error(`[privatetransport] API Request Failed: ${method} ${url}`, err);
-
         const statusCode = err.response?.status || err.statusCode;
-        let message = `API request failed for ${method} ${endpoint}.`;
-
-        if (err.data?.message) {
-            message = err.data.message;
-        } else if (err.statusMessage) {
-            message = err.statusMessage;
-        } else if (err.message) {
-            message = err.message;
-        }
+        const message = err.data?.message || err.statusMessage || err.message || `API request failed for ${method} ${endpoint}.`;
 
         return { success: false, error: { message, statusCode } };
     }
