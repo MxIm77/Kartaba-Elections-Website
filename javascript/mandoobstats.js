@@ -6,6 +6,7 @@ const STATS_ENDPOINT = '/statistics/total';
 // const RECORDS_PER_ROW = 25; // Not used if totalProcessed = total_rows
 // ~/javascript/stats-service.js
 
+
 /**
  * Fetches the total voted count from the backend API.
  * Requires an authentication token from localStorage.
