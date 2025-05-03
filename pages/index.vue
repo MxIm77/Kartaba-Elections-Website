@@ -117,9 +117,9 @@ async function routeUserBasedOnRole(role) {
     const lowerCaseRole = role ? role.toLowerCase() : '';
     try {
         switch (lowerCaseRole) {
-            case 'team': await router.push('/stats'); break;
+            case 'team': await router.push('/elections'); break;
             case 'mandoob': await router.push('/mandoob'); break;
-            case 'moderator': await router.push('/elections'); break;
+            case 'taxi': await router.push('/transport'); break;
             default:
                 console.warn(`Unrecognized role "${role}", routing to default.`);
                 await router.push('/transport');
