@@ -1,7 +1,7 @@
 // ~/javascript/transport.js  (Ensure this path matches your project structure)
 
 // Ensure the base URL is correct for your backend API
-const API_BASE_URL = 'http://192.168.10.103:4040';
+const API_BASE_URL = 'https://kartaba-2040.com/api';
 
 // Define API endpoints using a structured object
 const ENDPOINTS = {

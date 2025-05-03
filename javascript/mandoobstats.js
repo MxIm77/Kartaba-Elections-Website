@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://192.168.10.103:4040';
+const API_BASE_URL = 'https://kartaba-2040.com/api';
 const STATS_ENDPOINT = '/statistics/total';
 
 export async function fetchInitialStats() {

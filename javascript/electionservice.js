@@ -1,6 +1,6 @@
 import { $fetch } from 'ofetch';
 
-const API_BASE_URL = 'http://192.168.10.103:4040';
+const API_BASE_URL = 'https://kartaba-2040.com/api';
 const ITEMS_PER_PAGE = 25;
 
 export async function fetchInitialDataAndCount() {

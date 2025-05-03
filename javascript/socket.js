@@ -16,7 +16,7 @@ export function createWebSocketConnection() {
     }
 
     // Ensure ws:// protocol for standard WebSocket
-    const wsUrl = `ws://192.168.10.103:4040/team/broadcast/connect?token=${encodeURIComponent(token)}`;
+    const wsUrl = `ws://kartaba-2040.com/api/team/broadcast/connect?token=${encodeURIComponent(token)}`;
 
     try {
         const socket = new WebSocket(wsUrl);

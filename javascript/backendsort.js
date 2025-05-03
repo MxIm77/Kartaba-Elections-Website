@@ -1,5 +1,5 @@
 import { $fetch } from 'ofetch';
-const API_BASE_URL = 'http://192.168.10.103:4040';
+const API_BASE_URL = 'https://kartaba-2040.com/api';
 
 export async function fetchFilteredRecords(filters) {
   const filterUrl = `${API_BASE_URL}/team/find`;

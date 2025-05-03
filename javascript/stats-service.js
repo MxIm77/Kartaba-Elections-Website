@@ -1,7 +1,7 @@
 // ~/javascript/stats-service.js
 
 // Define the base URL for your API
-const API_BASE_URL = 'http://192.168.10.103:4040'; // Use const for fixed values
+const API_BASE_URL = 'https://kartaba-2040.com/api'; // Use const for fixed values
 const STATS_ENDPOINT = '/team/getrows/statistics';
 const RECORDS_PER_ROW = 25; // Define the multiplier
     

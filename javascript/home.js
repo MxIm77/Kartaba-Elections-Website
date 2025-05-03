@@ -1,7 +1,7 @@
 import { useFetch } from '#app';
 
 export async function checkSession() {
-  const checkSessionUrl = 'http://192.168.10.103:4040/check-session';
+  const checkSessionUrl = 'https://kartaba-2040.com/api/check-session';
 
   try {
     const token = localStorage.getItem('authToken');

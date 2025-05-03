@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://192.168.10.103:4040';
+const API_BASE_URL = 'https://kartaba-2040.com/api';
 const MODERATOR_LIST_ENDPOINT = '/moderator/getrows';
 
 export async function fetchModeratorRecords() {
