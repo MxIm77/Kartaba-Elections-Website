@@ -1,17 +1,18 @@
 <template>
     <div class="wrapper elections-page moderator-page">
 
-      <!-- Top Bar -->
       <div class="top-bar-mandoob">
           <button @click="handleLogout" class="logout-btn">
             تسجيل الخروج ({{ currentUser || '...' }})
           </button>
+          <button @click="toggleLiveConnection" :disabled="connecting || recordsLoading" class="live-btn" :class="{ 'live-active': isLive }">
+            <span v-if="connecting" class="loading-spinner small"></span>
+            {{ isLive ? 'إيقاف التحديث المباشر' : 'تحديث مباشر' }}
+          </button>
       </div>
 
-      <!-- Title -->
       <h1 style="margin-top: 60px;">قائمة المراقبين</h1>
 
-      <!-- Messages (For list loading errors mainly) -->
       <transition name="fade">
         <Warning
           v-if="errorMessage"
@@ -29,18 +30,14 @@
         />
       </transition>
 
-      <!-- Statistics Display Area (Orientation + Backend Voted Count) -->
       <div class="stats-display-area multi-stats">
-          <!-- Stats Loading State -->
           <div v-if="statsLoading" class="stats-loading-overlay">
               <span class="loading-spinner small"></span> جاري تحميل الإحصائيات...
           </div>
-          <!-- Stats Error State -->
           <div v-else-if="statsErrorMessage" class="stats-error-message">
                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                <span>فشل تحميل الإحصائيات: {{ statsErrorMessage }}</span>
           </div>
-          <!-- Stats Display (Orientation stats show if list loaded, Voted stats show if stats loaded) -->
           <template v-else>
               <div class="stat-item">
                   <span class="stat-label">مع:</span>
@@ -55,14 +52,12 @@
                   <span class="stat-value unknown">{{ countUnknown.toLocaleString() }}</span>
               </div>
               <div class="stat-item">
-                  <span class="stat-label">إجمالي المصوتين </span>
+                  <span class="stat-label">إجمالي المصوتين (API):</span>
                   <span class="stat-value total-voted">{{ backendOverallVoted.toLocaleString() }}</span>
               </div>
           </template>
       </div>
-      <!-- End Statistics Display Area -->
 
-      <!-- Filter Input -->
       <div class="filter-container">
         <input
           type="text"
@@ -73,7 +68,6 @@
         />
       </div>
 
-      <!-- Moderator Table -->
       <div class="table-container" dir="rtl" style="margin-top: 15px;">
         <table>
           <thead>
@@ -115,14 +109,12 @@
         </table>
       </div>
 
-      <!-- Pagination -->
       <div class="pagination" v-if="totalPages > 1 && !recordsLoading">
         <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">السابق</button>
         <span>صفحة {{ currentPage }} من {{ totalPages }}</span>
         <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages">التالي</button>
       </div>
 
-      <!-- Copyright -->
       <p class="copyright">© {{ new Date().getFullYear() }} Kartaba 2040 All rights reserved.</p>
     </div>
 </template>
@@ -131,41 +123,38 @@
     import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
     import { useRouter } from '#app';
     import { checkSession } from '~/javascript/home.js';
-    // *** Import fetchInitialStats from stats-service.js ***
     import { fetchInitialStats } from '~/javascript/mandoobstats.js';
-    // *** Corrected import for moderator records ***
     import { fetchModeratorRecords } from '~/javascript/offices.js';
+    import { createWebSocketConnection } from '~/javascript/socket.js';
     import Warning from '~/components/voteupdate.vue';
 
     const router = useRouter();
     const currentUser = ref(null);
 
-    // State for Moderator List & Filtering
     const allModeratorRecords = ref([]);
     const displayedRecords = ref([]);
-    const recordsLoading = ref(true); // Loading state for the list
+    const recordsLoading = ref(true);
     const currentPage = ref(1);
     const itemsPerPage = ref(25);
     const filterText = ref('');
 
-    // State for Frontend Calculated Orientation Stats
     const countWith = ref(0);
     const countAgainst = ref(0);
     const countUnknown = ref(0);
 
-    // State for Backend Fetched Total Voted Stats
-    const backendOverallVoted = ref(0); // Value from API
-    const statsLoading = ref(true);      // Loading state specifically for stats API call
-    const statsErrorMessage = ref(null); // Error message specifically for stats API call
+    const backendOverallVoted = ref(0);
+    const statsLoading = ref(true);
+    const statsErrorMessage = ref(null);
 
-    // General Message State (Primarily for list loading feedback now)
     const errorMessage = ref(null);
     const successMessage = ref(null);
     let messageTimeout = null;
 
-    // --- Computed Properties ---
+    const isLive = ref(false);
+    const connecting = ref(false);
+    const socketInstance = ref(null);
+
     const filteredModeratorRecords = computed(() => {
-      // ... (filtering logic remains the same)
       const searchTerm = filterText.value.trim().toLowerCase();
       if (!searchTerm) {
         return allModeratorRecords.value;
@@ -188,7 +177,6 @@
     const totalRecords = computed(() => filteredModeratorRecords.value.length);
     const totalPages = computed(() => Math.ceil(totalRecords.value / itemsPerPage.value));
 
-    // --- Watchers ---
     watch([filteredModeratorRecords, currentPage], () => {
         calculateDisplayedRecords();
     }, { deep: true });
@@ -199,9 +187,7 @@
       }
     });
 
-    // --- Methods ---
     function calculateDisplayedRecords() {
-        // ... (remains the same)
         const recordsToPaginate = filteredModeratorRecords.value;
         if (!recordsToPaginate || recordsToPaginate.length === 0) {
             displayedRecords.value = []; return;
@@ -211,12 +197,10 @@
         displayedRecords.value = recordsToPaginate.slice(startIndex, endIndex);
     }
 
-    // Calculates ONLY orientation stats from the loaded moderator list
     function calculateOrientationStats() {
       let withCount = 0;
       let againstCount = 0;
       let unknownCount = 0;
-      // Ensure calculation runs only if data exists
       if (allModeratorRecords.value && allModeratorRecords.value.length > 0) {
           for (const record of allModeratorRecords.value) {
             const orientation = record.orientation?.toString().toLowerCase().trim();
@@ -231,10 +215,7 @@
       console.log(`[moderator] Orientation Stats Calculated: With=${withCount}, Against=${againstCount}, Unknown=${unknownCount}`);
     }
 
-    // *** REMOVED: calculateVotedCount() method ***
-
     function formatOrientation(orientationValue) {
-        // ... (remains the same)
         const orientation = orientationValue?.toString().toLowerCase().trim();
          if (orientation === 'with') return 'مع';
          if (orientation === 'against') return 'ضد';
@@ -242,26 +223,24 @@
     }
 
     function showMessage(type, message, duration = 4000) {
-        // ... (remains the same)
         if (messageTimeout) clearTimeout(messageTimeout);
         errorMessage.value = null; successMessage.value = null;
         if (type === 'success') successMessage.value = message;
-        else if (type === 'error') errorMessage.value = message; // Sets the main list error
+        else if (type === 'error') errorMessage.value = message;
+        else if (type === 'info' || type === 'warning') successMessage.value = message;
+
         if (type) {
             messageTimeout = setTimeout(() => { successMessage.value = null; errorMessage.value = null; }, duration);
         }
     }
 
-    // *** Renamed loadModeratorData to avoid conflict conceptually ***
-    // This ONLY fetches the list, stats are fetched separately/concurrently
     async function fetchModeratorList() {
         try {
-          const result = await fetchModeratorRecords(); // Fetch moderator list
+          const result = await fetchModeratorRecords();
           if (result.success && Array.isArray(result.data)) {
             const sortedData = result.data.sort((a, b) => Number(a.register) - Number(b.register));
             return { success: true, data: sortedData };
           } else {
-            // Pass error message up
             return { success: false, error: result.error?.message || 'Failed to load Moderator records.' };
           }
         } catch (err) {
@@ -270,15 +249,128 @@
     }
 
     function goToPage(page) {
-        // ... (remains the same)
         if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
             currentPage.value = page;
             window.scrollTo(0, 0);
         }
     }
 
+    function handleWebSocketMessage(event) {
+        try {
+            const data = JSON.parse(event.data);
+            const updateType = data.update_type;
+            const recordId = data.voter_id;
+            const newStatus = data.status;
+
+            if (updateType === 'vote' && typeof newStatus === 'boolean' && recordId !== undefined && recordId !== null) {
+                const recordIndex = allModeratorRecords.value.findIndex(r => r.id === recordId);
+
+                if (recordIndex > -1) {
+                    const currentRecord = allModeratorRecords.value[recordIndex];
+                    const wasAlreadyVoted = currentRecord.voted === true || currentRecord.voted === 'true' || currentRecord.voted === 1;
+
+                    if (newStatus === true && !wasAlreadyVoted) {
+                         backendOverallVoted.value++;
+                    }
+
+                    const updatedRecord = { ...currentRecord, voted: newStatus };
+                    allModeratorRecords.value.splice(recordIndex, 1, updatedRecord);
+
+
+                    calculateDisplayedRecords();
+                } else {
+                     console.log(`[WS] Received vote update for record ID ${recordId}, but it's not in the current master list.`);
+                     if (newStatus === true) {
+                        backendOverallVoted.value++;
+                     }
+                }
+            } else {
+                console.warn("[WS] Received non-vote or invalid message:", data);
+            }
+        } catch (err) {
+            console.error('[WS] Error processing WebSocket message:', err, event.data);
+            showMessage('error', 'خطأ في معالجة التحديث المباشر.');
+        }
+    }
+
+    function startWebSocketConnection() {
+        if (isLive.value || connecting.value) return;
+
+        connecting.value = true;
+        errorMessage.value = null;
+        successMessage.value = null;
+
+        const socket = createWebSocketConnection();
+
+        if (!socket) {
+            showMessage('error', 'فشل تهيئة اتصال التحديث المباشر.');
+            connecting.value = false;
+            return;
+        }
+
+        socketInstance.value = socket;
+
+        socket.onopen = () => {
+            isLive.value = true;
+            connecting.value = false;
+            showMessage('success', 'تم تفعيل التحديث المباشر.');
+            console.log("[WS] WebSocket connection opened.");
+        };
+
+        socket.onmessage = handleWebSocketMessage;
+
+        socket.onerror = (error) => {
+            console.error('[WS] WebSocket error:', error);
+            showMessage('error', 'حدث خطأ في الاتصال المباشر.');
+            disconnectWebSocket();
+        };
+
+        socket.onclose = (event) => {
+            console.log(`[WS] WebSocket closed - Code: ${event.code}, Reason: ${event.reason}, Was Clean: ${event.wasClean}`);
+            if (isLive.value && event.code !== 1000) {
+                showMessage('warning', `تم إغلاق الاتصال المباشر بشكل غير متوقع (Code: ${event.code}).`);
+            }
+            disconnectWebSocket();
+        };
+    }
+
+    function disconnectWebSocket() {
+        if (!socketInstance.value && !isLive.value && !connecting.value) {
+            return;
+        }
+
+        isLive.value = false;
+        connecting.value = false;
+
+        if (socketInstance.value) {
+            socketInstance.value.onopen = null;
+            socketInstance.value.onmessage = null;
+            socketInstance.value.onerror = null;
+            socketInstance.value.onclose = null;
+
+            if (socketInstance.value.readyState === WebSocket.OPEN || socketInstance.value.readyState === WebSocket.CONNECTING) {
+                try {
+                    socketInstance.value.close(1000, "User initiated disconnect");
+                } catch (e) {
+                    console.error("[WS] Error closing WebSocket:", e);
+                }
+            }
+            socketInstance.value = null;
+        }
+        console.log("[WS] WebSocket disconnected.");
+    }
+
+    function toggleLiveConnection() {
+        if (isLive.value) {
+            disconnectWebSocket();
+            showMessage('info', 'تم إيقاف التحديث المباشر.');
+        } else {
+            startWebSocketConnection();
+        }
+    }
+
     async function handleLogout() {
-        // ... (remains the same)
+        disconnectWebSocket();
         try {
           localStorage.removeItem('currentUser');
           localStorage.removeItem('authToken');
@@ -286,129 +378,115 @@
           await router.push('/');
         } catch (error) {
           console.error('Logout error:', error);
-          // Use showMessage for consistency, maybe?
-          errorMessage.value = 'Logout failed.'; // Or use showMessage
+          errorMessage.value = 'Logout failed.';
         }
     }
 
-    // --- Component Lifecycle ---
     onMounted(async () => {
       currentUser.value = localStorage.getItem('currentUser');
-      recordsLoading.value = true; // Start loading list
-      statsLoading.value = true;   // Start loading stats
+      recordsLoading.value = true;
+      statsLoading.value = true;
       filterText.value = '';
-      showMessage(null, ''); // Clear previous general messages
-      statsErrorMessage.value = null; // Clear previous stats errors
+      showMessage(null, '');
+      statsErrorMessage.value = null;
 
-      // Reset stats
       countWith.value = 0;
       countAgainst.value = 0;
       countUnknown.value = 0;
       backendOverallVoted.value = 0;
 
       try {
-        // 1. Check Session
         const sessionResult = await checkSession();
         if (!sessionResult.success) {
           showMessage('error', `Session invalid: ${sessionResult.error?.message || 'Please log in again.'}`, 6000);
-          recordsLoading.value = false; // Stop loading indicators
+          recordsLoading.value = false;
           statsLoading.value = false;
           await router.push('/');
           return;
         }
         currentUser.value = sessionResult.username || currentUser.value || 'User';
 
-        // 2. Fetch List and Stats Concurrently
         const results = await Promise.allSettled([
-            fetchModeratorList(), // Fetches the moderator list
-            fetchInitialStats()   // Fetches total_voted from stats-service
+            fetchModeratorList(),
+            fetchInitialStats()
         ]);
 
         const listResult = results[0];
         const statsApiResult = results[1];
 
-        // 3. Process List Result
         if (listResult.status === 'fulfilled' && listResult.value.success) {
             allModeratorRecords.value = listResult.value.data;
             currentPage.value = 1;
-            calculateOrientationStats(); // Calculate orientation stats from the fetched list
-            errorMessage.value = null; // Clear list error on success
+            calculateOrientationStats();
+            errorMessage.value = null;
         } else {
-            // Handle list fetch failure
             const listErrorMsg = listResult.status === 'fulfilled'
-                               ? listResult.value.error // Error reported by our fetch function
-                               : listResult.reason?.message || 'Unknown error fetching list.'; // Network/promise error
+                               ? listResult.value.error
+                               : listResult.reason?.message || 'Unknown error fetching list.';
             errorMessage.value = `فشل تحميل قائمة المراقبين: ${listErrorMsg}`;
             allModeratorRecords.value = [];
-            // Reset orientation stats on list failure
             countWith.value = 0;
             countAgainst.value = 0;
             countUnknown.value = 0;
         }
-        recordsLoading.value = false; // List loading finished (success or fail)
+        recordsLoading.value = false;
 
-        // 4. Process Stats API Result
         if (statsApiResult.status === 'fulfilled' && statsApiResult.value.success) {
             backendOverallVoted.value = statsApiResult.value.data.overallVoted;
-            statsErrorMessage.value = null; // Clear stats error on success
+            statsErrorMessage.value = null;
         } else {
-            // Handle stats fetch failure
             const statsErrorMsg = statsApiResult.status === 'fulfilled'
-                                 ? statsApiResult.value.error // Error reported by fetchInitialStats
-                                 : statsApiResult.reason?.message || 'Unknown error fetching stats.'; // Network/promise error
-            statsErrorMessage.value = statsErrorMsg; // Set specific stats error message
-            backendOverallVoted.value = 0; // Default to 0 on error
+                                 ? statsApiResult.value.error
+                                 : statsApiResult.reason?.message || 'Unknown error fetching stats.';
+            statsErrorMessage.value = statsErrorMsg;
+            backendOverallVoted.value = 0;
         }
-        statsLoading.value = false; // Stats loading finished (success or fail)
+        statsLoading.value = false;
 
       } catch (err) {
-        // Catch unexpected errors during setup (e.g., checkSession failure before push)
         console.error('Error during component initialization:', err);
         errorMessage.value = `Initialization failed: ${err.message}. Redirecting...`;
         recordsLoading.value = false;
         statsLoading.value = false;
-        // Consider redirecting only if essential setup fails
-        // await router.push('/');
       }
+       calculateDisplayedRecords();
     });
 
     onUnmounted(() => {
+      disconnectWebSocket();
       if (messageTimeout) { clearTimeout(messageTimeout); }
     });
 
 </script>
 
 <style>
-/* Root variables (Include --row-with-bg-color, --row-with-bg-hover-color) */
 :root {
     --primary-bg-color: #1a233a;
     --card-bg-color: #2a3b52;
     --text-color-light: #e0e0e0;
     --text-color-lighter: #f5f5f5;
     --text-color-muted: #9DA3B4;
-    --accent-color: #FF3B30; /* Red accent */
+    --accent-color: #FF3B30;
     --accent-hover: #E02E24;
     --input-bg-color: rgba(42, 59, 82, 0.9);
     --input-border-color: rgba(255, 255, 255, 0.1);
-    --input-focus-border: rgba(52, 199, 89, 0.6); /* Green focus */
+    --input-focus-border: rgba(52, 199, 89, 0.6);
     --input-focus-shadow: rgba(52, 199, 89, 0.15);
     --error-color: #FF453A;
     --error-bg: rgba(255, 69, 58, 0.1);
-    --success-color: #34C759; /* Green success */
+    --success-color: #34C759;
     --success-bg: rgba(52, 199, 89, 0.1);
     --table-header-bg: #00000085;
-    --table-even-row-bg: #1f2940; /* Base even row */
+    --table-even-row-bg: #1f2940;
     --table-border-color: #3a4a63;
     --disabled-bg-color: #3a4a63;
     --disabled-text-color: #7e8a9e;
-    /* Stat colors */
     --stat-with-color: #34C759;
     --stat-against-color: #FF453A;
     --stat-unknown-color: #9DA3B4;
     --stat-voted-color: var(--text-color-lighter);
-    /* Row highlight color */
-    --row-with-bg-color: rgba(52, 199, 89, 0.15); /* Light green background */
-    --row-with-bg-hover-color: rgba(52, 199, 89, 0.25); /* Slightly darker green on hover */
+    --row-with-bg-color: rgba(52, 199, 89, 0.15);
+    --row-with-bg-hover-color: rgba(52, 199, 89, 0.25);
 }
 html, body, #__nuxt {
     height: 100%; margin: 0; padding: 0;
@@ -419,16 +497,51 @@ html, body, #__nuxt {
 </style>
 
 <style scoped>
-/* --- Page Specific Styles --- */
 .wrapper.moderator-page { max-width: 1600px; margin: 0 auto; padding: 40px 20px 60px 20px; box-sizing: border-box; position: relative; }
 h1 { color: var(--text-color-lighter); margin-bottom: 25px; text-align: center; margin-top: 20px; }
 
-/* Top Bar */
-.top-bar-mandoob { position: absolute; top: 41px; left: 20px; z-index: 100; }
+.top-bar-mandoob {
+    position: absolute;
+    top: 41px;
+    left: 20px;
+    z-index: 100;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+ }
 .logout-btn { padding: 8px 15px; background-color: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background-color 0.2s ease; }
 .logout-btn:hover { background-color: var(--accent-hover); }
+.live-btn {
+    padding: 8px 15px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, opacity 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    height: 36px;
+}
+.live-btn:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+.live-btn:disabled {
+    background-color: #6c757d;
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+.live-btn.live-active {
+    background-color: #dc3545;
+}
+.live-btn.live-active:hover:not(:disabled) {
+    background-color: #c82333;
+}
 
-/* Statistics Area */
+
 .stats-display-area.multi-stats {
     background-color: var(--card-bg-color);
     padding: 15px 25px;
@@ -442,24 +555,22 @@ h1 { color: var(--text-color-lighter); margin-bottom: 25px; text-align: center; 
     align-items: center;
     flex-wrap: wrap;
     gap: 20px;
-    position: relative; /* Needed for overlay positioning */
-    min-height: 60px; /* Ensure height even when loading/empty */
+    position: relative;
+    min-height: 60px;
 }
-/* Overlay for stats loading */
 .stats-loading-overlay {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
-    background-color: rgba(42, 59, 82, 0.8); /* Semi-transparent overlay */
+    background-color: rgba(42, 59, 82, 0.8);
     display: flex;
     justify-content: center;
     align-items: center;
     color: var(--text-color-muted);
     font-size: 0.9em;
     gap: 10px;
-    border-radius: 8px; /* Match parent */
-    z-index: 5; /* Above stat items */
+    border-radius: 8px;
+    z-index: 5;
 }
-/* Error message styling */
 .stats-error-message {
     width: 100%;
     text-align: center;
@@ -475,7 +586,6 @@ h1 { color: var(--text-color-lighter); margin-bottom: 25px; text-align: center; 
     flex-shrink: 0;
 }
 
-/* Individual Stat Item */
 .stat-item { background-color: transparent; padding: 0; text-align: center; flex-basis: auto; min-width: 100px; }
 .stat-label { display: block; font-size: 1em; color: var(--text-color-muted); margin-bottom: 5px; }
 .stat-value { display: block; font-size: 1.4em; font-weight: 700; }
@@ -484,13 +594,11 @@ h1 { color: var(--text-color-lighter); margin-bottom: 25px; text-align: center; 
 .stat-value.unknown { color: var(--stat-unknown-color); }
 .stat-value.total-voted { color: var(--stat-voted-color); }
 
-/* Filter Input */
 .filter-container { margin-bottom: 20px; max-width: 600px; margin-left: auto; margin-right: auto; }
 .filter-input { width: 100%; padding: 10px 15px; font-size: 1rem; color: var(--text-color-light); background-color: var(--input-bg-color); border: 1px solid var(--input-border-color); border-radius: 6px; box-sizing: border-box; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
 .filter-input::placeholder { color: var(--text-color-muted); opacity: 0.7; }
 .filter-input:focus { outline: none; border-color: var(--input-focus-border); box-shadow: 0 0 0 3px var(--input-focus-shadow); }
 
-/* Table Styles */
 .table-container { max-height: 60vh; overflow-y: auto; border: 1px solid var(--table-border-color); border-radius: 8px; background-color: var(--primary-bg-color); }
 table { width: 100%; border-collapse: collapse; table-layout: auto; }
 th, td { border: 1px solid var(--table-border-color); padding: 8px 10px; font-size: 14px; vertical-align: middle; text-align: right; white-space: nowrap; transition: background-color 0.15s ease; }
@@ -498,7 +606,6 @@ th { background-color: var(--table-header-bg); color: var(--text-color-lighter);
 tbody tr:nth-child(even) { background-color: var(--table-even-row-bg); }
 tbody tr:hover td { background-color: var(--card-bg-color); }
 
-/* 'With' Orientation Row Highlight */
 tbody tr.row-orientation-with td {
     background-color: var(--row-with-bg-color);
     color: var(--text-color-lighter);
@@ -507,7 +614,6 @@ tbody tr.row-orientation-with:hover td {
     background-color: var(--row-with-bg-hover-color);
 }
 
-/* Placeholder Rows (colspan = 8) */
 tbody tr td[colspan="8"] {
     padding: 20px;
     color: var(--text-color-muted);
@@ -518,23 +624,19 @@ tbody tr:hover td[colspan="8"] {
     background-color: transparent !important;
 }
 
-/* Pagination */
 .pagination { text-align: center; margin-top: 25px; display: flex; justify-content: center; align-items: center; gap: 10px; }
 .pagination span { padding: 8px 12px; color: var(--text-color-muted); font-size: 14px; }
 .pagination button { padding: 8px 15px; border: none; background-color: var(--accent-color); color: white; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; border-radius: 6px; height: 40px; display: inline-flex; align-items: center; justify-content: center; }
 .pagination button:hover:not(:disabled) { background-color: var(--accent-hover); }
 .pagination button:disabled { opacity: 0.65; cursor: not-allowed; background-color: var(--disabled-bg-color) !important; }
 
-/* Loading Spinner */
 .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: var(--text-color-lighter); animation: spin 0.8s linear infinite; vertical-align: middle; }
 .loading-spinner.small { width: 16px; height: 16px; border-width: 2px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Fade Transition */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* Copyright */
 .copyright { margin-top: 30px; font-size: 12px; color: rgba(255, 255, 255, 0.4); text-align: center; }
 
 </style>
