@@ -151,6 +151,7 @@
     const isLive = ref(false);
     const connecting = ref(false);
     const socketInstance = ref(null);
+    const audioPlayer = ref(null);
 
     const filteredModeratorRecords = computed(() => {
       const searchTerm = filterText.value.trim().toLowerCase();
@@ -271,8 +272,16 @@
                 console.log(previouslyVoted)
                 if (newStatus === true && !previouslyVoted) {
                     backendOverallVoted.value++;
+                    if (audioPlayer.value && audioPlayer.value.readyState >= 2) {
+                      audioPlayer.value.currentTime = 0;
+                      audioPlayer.value.play().catch(error => console.warn("Audio playback failed:", error));
+                    }
                 } else if (newStatus === false && previouslyVoted) {
                     backendOverallVoted.value--;
+                    if (audioPlayer.value && audioPlayer.value.readyState >= 2) {
+                      audioPlayer.value.currentTime = 0;
+                      audioPlayer.value.play().catch(error => console.warn("Audio playback failed:", error));
+                    }
                 }
 
                 const updatedRecord = { ...currentRecord, voted: newStatus };
@@ -456,11 +465,22 @@
         statsLoading.value = false;
       }
        calculateDisplayedRecords();
+
+       if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
+        try { audioPlayer.value = new Audio('/votes.mp3'); audioPlayer.value.preload = 'auto'; }
+        catch(e) { console.error("Failed audio init:", e); audioPlayer.value = null; }
+      }
     });
 
     onUnmounted(() => {
       disconnectWebSocket();
       if (messageTimeout) { clearTimeout(messageTimeout); }
+      if (audioPlayer.value) {
+        audioPlayer.value.pause();
+        audioPlayer.value.removeAttribute('src');
+        audioPlayer.value.load();
+        audioPlayer.value = null;
+      }
     });
 
 </script>
