@@ -287,37 +287,37 @@
             if (recordIndex > -1) {
                 const currentRecord = allModeratorRecords.value[recordIndex];
                 const previouslyVoted = currentRecord.voted === true || currentRecord.voted === 'true' || currentRecord.voted === 1;
+                const orientation = currentRecord.orientation?.toString().toLowerCase().trim();
+                console.log(orientation)
                 console.log(previouslyVoted)
                 if (newStatus === true && !previouslyVoted) {
                     backendOverallVoted.value++;
-                    for (const record of allModeratorRecords.value) {
-                      if (record.id == recordId) {
-                        if (record.orientation === 'with') {
-                          countWith.value++
-                        } else if (record.orientation === 'against') {
-                          countAgainst.value++
-                        } else {
-                          countUnknown.value++
-                        }
-                      }
+
+                    if (orientation === 'with') {
+                        countWith.value++;
+                    } else if (orientation === 'against') {
+                        countAgainst.value++;
+                    } else {
+                        countUnknown.value++;
                     }
+
                     if (audioPlayer.value && audioPlayer.value.readyState >= 2) {
                       audioPlayer.value.currentTime = 0;
                       audioPlayer.value.play().catch(error => console.warn("Audio playback failed:", error));
                     }
                 } else if (newStatus === false && previouslyVoted) {
                     backendOverallVoted.value--;
-                    for (const record of allModeratorRecords.value) {
-                      if (record.id == recordId) {
-                        if (record.orientation === 'with') {
-                          countWith.value--
-                        } else if (record.orientation === 'against') {
-                          countAgainst.value--
-                        } else {
-                          countUnknown.value--
-                        }
-                      }
+
+                    backendOverallVoted.value--;
+                    // Update orientation counts based on the record's orientation
+                    if (orientation === 'with') {
+                        countWith.value--;
+                    } else if (orientation === 'against') {
+                        countAgainst.value--;
+                    } else {
+                        countUnknown.value--;
                     }
+
                     if (audioPlayer.value && audioPlayer.value.readyState >= 2) {
                       audioPlayer.value.currentTime = 0;
                       audioPlayer.value.play().catch(error => console.warn("Audio playback failed:", error));
@@ -331,30 +331,8 @@
                 console.log(`[WS] Received vote update for record ID ${recordId}, but it's not in the current master list.`);
                 if (newStatus === true) {
                     backendOverallVoted.value++;
-                    for (const record of allModeratorRecords.value) {
-                      if (record.id === recordId) {
-                        if (record.orientation === 'with') {
-                          countWith.value++
-                        } else if (record.orientation === 'against') {
-                          countAgainst.value++
-                        } else {
-                          countUnknown.value++
-                        }
-                      }
-                    }
                 } else if (newStatus === false) {
                     backendOverallVoted.value--;
-                    for (const record of allModeratorRecords.value) {
-                      if (record.id === recordId) {
-                        if (record.orientation === 'with') {
-                          countWith.value--
-                        } else if (record.orientation === 'against') {
-                          countAgainst.value--
-                        } else {
-                          countUnknown.value--
-                        }
-                      }
-                    }
                 }
             }
 
