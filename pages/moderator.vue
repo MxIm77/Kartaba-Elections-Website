@@ -139,9 +139,9 @@
     const itemsPerPage = ref(25);
     const filterText = ref('');
 
-    const countWith = ref(0);
-    const countAgainst = ref(0);
-    const countUnknown = ref(0);
+    let countWith = ref(0);
+    let countAgainst = ref(0);
+    let countUnknown = ref(0);
 
     let backendOverallVoted = ref(0);
     const statsLoading = ref(true);
@@ -203,14 +203,29 @@
       let withCount = 0;
       let againstCount = 0;
       let unknownCount = 0;
+      
       if (allModeratorRecords.value && allModeratorRecords.value.length > 0) {
-          for (const record of allModeratorRecords.value) {
+        for (const record of allModeratorRecords.value) {
+          // Check if the record has voted (handling different truthy values)
+          const hasVoted = record.voted === true || record.voted === 'true' || record.voted === 1;
+          
+          if (hasVoted) {
             const orientation = record.orientation?.toString().toLowerCase().trim();
-            if (orientation === 'with') withCount++;
-            else if (orientation === 'against') againstCount++;
-            else unknownCount++;
+            if (orientation === 'with') {
+              withCount++;
+            } else if (orientation === 'against') {
+              againstCount++;
+            } else {
+              // This includes 'unknown' and any other value
+              unknownCount++;
+            }
           }
+        }
+        console.log(withCount);
+        console.log(againstCount);
+        console.log(unknownCount);
       }
+      
       countWith.value = withCount;
       countAgainst.value = againstCount;
       countUnknown.value = unknownCount;
@@ -275,12 +290,34 @@
                 console.log(previouslyVoted)
                 if (newStatus === true && !previouslyVoted) {
                     backendOverallVoted.value++;
+                    for (const record of allModeratorRecords.value) {
+                      if (record.id == recordId) {
+                        if (record.orientation === 'with') {
+                          countWith.value++
+                        } else if (record.orientation === 'against') {
+                          countAgainst.value++
+                        } else {
+                          countUnknown.value++
+                        }
+                      }
+                    }
                     if (audioPlayer.value && audioPlayer.value.readyState >= 2) {
                       audioPlayer.value.currentTime = 0;
                       audioPlayer.value.play().catch(error => console.warn("Audio playback failed:", error));
                     }
                 } else if (newStatus === false && previouslyVoted) {
                     backendOverallVoted.value--;
+                    for (const record of allModeratorRecords.value) {
+                      if (record.id == recordId) {
+                        if (record.orientation === 'with') {
+                          countWith.value--
+                        } else if (record.orientation === 'against') {
+                          countAgainst.value--
+                        } else {
+                          countUnknown.value--
+                        }
+                      }
+                    }
                     if (audioPlayer.value && audioPlayer.value.readyState >= 2) {
                       audioPlayer.value.currentTime = 0;
                       audioPlayer.value.play().catch(error => console.warn("Audio playback failed:", error));
@@ -294,8 +331,30 @@
                 console.log(`[WS] Received vote update for record ID ${recordId}, but it's not in the current master list.`);
                 if (newStatus === true) {
                     backendOverallVoted.value++;
+                    for (const record of allModeratorRecords.value) {
+                      if (record.id === recordId) {
+                        if (record.orientation === 'with') {
+                          countWith.value++
+                        } else if (record.orientation === 'against') {
+                          countAgainst.value++
+                        } else {
+                          countUnknown.value++
+                        }
+                      }
+                    }
                 } else if (newStatus === false) {
                     backendOverallVoted.value--;
+                    for (const record of allModeratorRecords.value) {
+                      if (record.id === recordId) {
+                        if (record.orientation === 'with') {
+                          countWith.value--
+                        } else if (record.orientation === 'against') {
+                          countAgainst.value--
+                        } else {
+                          countUnknown.value--
+                        }
+                      }
+                    }
                 }
             }
 
