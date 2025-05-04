@@ -94,7 +94,10 @@
                <td colspan="8" style="text-align: center;">لا توجد نتائج تطابق بحثك "{{ filterText }}".</td>
             </tr>
             <tr v-else v-for="record in displayedRecords" :key="record.id"
-                :class="{ 'row-orientation-with': record.orientation && record.orientation.toString().toLowerCase().trim() === 'with' }">
+                :class="{ 'row-orientation-with': record.orientation && record.orientation.toString().toLowerCase().trim() === 'with',
+                          'row-orientation-against':  record.orientation && record.orientation.toString().toLowerCase().trim() === 'against',
+                          'row-orientation-unsure':  record.orientation && record.orientation.toString().toLowerCase().trim() === 'unsure'
+                 }">
               <td>{{ record.name }}</td>
               <td>{{ record.family }}</td>
               <td>{{ record.father }}</td>
@@ -512,7 +515,11 @@
     --stat-unknown-color: #9DA3B4;
     --stat-voted-color: var(--text-color-lighter);
     --row-with-bg-color: rgba(52, 199, 89, 0.15);
+    --row-against-bg-color: rgba(200, 39, 39, 0.15);
+    --row-unsure-bg-color: rgba(192, 200, 39, 0.15);
     --row-with-bg-hover-color: rgba(52, 199, 89, 0.25);
+    --row-against-bg-hover-color: rgba(200, 39, 39, 0.25);
+    --row-unsure-bg-hover-color: rgba(192, 200, 39, 0.25);
 }
 html, body, #__nuxt {
     height: 100%; margin: 0; padding: 0;
@@ -638,6 +645,22 @@ tbody tr.row-orientation-with td {
 }
 tbody tr.row-orientation-with:hover td {
     background-color: var(--row-with-bg-hover-color);
+}
+
+tbody tr.row-orientation-against td {
+    background-color: var( --row-against-bg-color);
+    color: var(--text-color-lighter);
+}
+tbody tr.row-orientation-against:hover td {
+    background-color: var(--row-against-bg-hover-color);
+}
+
+tbody tr.row-orientation-unsure td {
+    background-color: var( --row-unsure-bg-color);
+    color: var(--text-color-lighter);
+}
+tbody tr.row-orientation-unsure:hover td {
+    background-color: var(--row-unsure-bg-hover-color);
 }
 
 tbody tr td[colspan="8"] {
